@@ -416,6 +416,7 @@ module.Create = function(frame, text, customization)
 				end
 			end
 			createCharacter = function(character, width, position)
+				-- Create and stylize.
 				local textLabel = Instance.new("TextLabel")
 				textLabel.BackgroundTransparency = 1
 				textLabel.Text = character
@@ -427,6 +428,13 @@ module.Create = function(frame, text, customization)
 				textLabel.TextYAlignment = yAlignment
 				textLabel.Size = UDim2.fromOffset(width, size)
 				textLabel.Position = position
+				-- Apply stroke if any is given.
+				if stroke then
+					local uiStroke = Instance.new("UIStroke")
+					uiStroke.Thickness = stroke
+					uiStroke.Parent = textLabel
+				end
+				-- Return character instance.
 				return textLabel
 			end
 		else
@@ -444,18 +452,22 @@ module.Create = function(frame, text, customization)
 				return characters[character][4]/fontSize*size
 			end
 			createCharacter = function(character, width, position)
+				-- Create and stylize.
 				local data = characters[character]
 				local imageLabel = Instance.new("ImageLabel")
 				imageLabel.BackgroundTransparency = 1
 				imageLabel.Image = image
 				imageLabel.ImageColor3 = color
 				imageLabel.ImageTransparency = transparency
+				-- Image cutout.
 				local characterSize = data[1]
 				imageLabel.ImageRectSize = characterSize
 				imageLabel.ImageRectOffset = data[2]
+				-- Transformation.
 				imageLabel.Size = UDim2.fromOffset(characterSize.X/fontSize*size, characterSize.Y/fontSize*size)
 				local offset = data[3]/fontSize*size
 				imageLabel.Position = position + UDim2.fromOffset(offset.X, offset.Y)
+				-- Return character instance.
 				return imageLabel
 			end
 		end
@@ -583,12 +595,6 @@ module.Create = function(frame, text, customization)
 				local width = character[2]
 				
 				local element = createCharacter(character[1], width/characterSpacing, UDim2.fromOffset(x, y))
-				-- Apply stroke if any is given.
-				if stroke then
-					local uiStroke = Instance.new("UIStroke")
-					uiStroke.Thickness = stroke
-					uiStroke.Parent = element
-				end
 				-- Numerical naming.
 				if not lineSorting and not wordSorting then
 					globalCharacterCount += 1
