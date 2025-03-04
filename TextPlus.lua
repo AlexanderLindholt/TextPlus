@@ -21,10 +21,34 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
- - AlexanderLindholt
-
 A lightweight, open-source text rendering module for Roblox,
 featuring custom fonts and fine-control over all characters.
+
+Github: https://github.com/AlexanderLindholt/TextPlus
+
+--------------------------------------------------------------------------------
+MIT License
+
+Copyright (c) 2025 Alexander Lindholt
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+--------------------------------------------------------------------------------
 
 ]]--
 
@@ -52,18 +76,20 @@ local customizationOptions = {
 	Font = true,
 	Color = true,
 	Transparency = true,
+	Stroke = true,
 	LineHeight = true,
 	CharacterSpacing = true,
 	XAlignment = true,
 	YAlignment = true,
 	WordSorting = true,
-	LineSorting = true
+	LineSorting = true,
 }
 
 local frameCustomizations = setmetatable({}, {__mode = "k"})
+local frameTextBounds = setmetatable({}, {__mode = "k"})
 
 local textBoundsParams = Instance.new("GetTextBoundsParams")
-textBoundsParams.Size = 100
+textBoundsParams.Size = 100 -- Maximum size.
 local characterWidthCache = {}
 
 do
@@ -192,6 +218,7 @@ type Customization = {
 	Font: Font?,
 	Color: Color3?,
 	Transparency: number?,
+	Stroke: number?,
 	LineHeight: number?,
 	CharacterSpacing: number?,
 	XAlignment: Enum.TextXAlignment?,
@@ -201,11 +228,24 @@ type Customization = {
 }
 type Module = {
 	Create: (frame: Frame, text: string, customization: Customization?) -> (),
+	
+	GetTextBounds: (frame: Frame) -> Vector2,
 	GetCharacters: (frame: Frame) -> {TextLabel | ImageLabel}
 }
 
 local module = {}
 
+module.GetTextBounds = function(frame)
+	-- Argument errors.
+	if typeof(frame) ~= "Instance" or not frame:IsA("Frame") then error("No frame received.") end
+	
+	-- Get and verify text bounds.
+	local textBounds = frameTextBounds[frame]
+	if not textBounds then error("No text has been created inside this frame.") end
+	
+	-- Return text bounds.
+	return textBounds
+end
 module.GetCharacters = function(frame)
 	-- Argument errors.
 	if typeof(frame) ~= "Instance" or not frame:IsA("Frame") then error("No frame received.") end
@@ -282,6 +322,9 @@ local function correctCustomization(customization)
 		if type(customization.Transparency) ~= "number" then
 			customization.Transparency = defaultTransparency
 		end
+		if type(customization.Stroke) ~= "number" or customization.Stroke <= 0 then
+			customization.Stroke = nil
+		end
 		if typeof(customization.XAlignment) ~= "EnumItem" or customization.XAlignment.EnumType ~= Enum.TextXAlignment then
 			customization.XAlignment = defaultXAlignment
 		end
@@ -341,7 +384,8 @@ module.Create = function(frame, text, customization)
 	local size = customization.Size
 	local color = customization.Color
 	local transparency = customization.Transparency
-	local lineHeight = customization.LineHeight*size
+	local stroke = customization.Stroke
+	local lineHeight = customization.LineHeight*size -- Multiply by size to get it from scale to pixels.
 	local characterSpacing = customization.CharacterSpacing
 	local xAlignment = customization.XAlignment
 	local yAlignment = customization.YAlignment
@@ -418,26 +462,28 @@ module.Create = function(frame, text, customization)
 	end
 	
 	-- Calculate base information.
-	local frameWidth = frame.AbsoluteSize.X
-	local frameHeight = frame.AbsoluteSize.Y
+	local textWidth = 0
+	
+	local frameSize = frame.AbsoluteSize
+	local frameWidth = frameSize.X
+	
 	local spaceWidth = getCharacterWidth(" ")*characterSpacing
 	
 	local linesFromText = text:split("\n")
 	local lines = {}
 	local currentLine = {{}, 0}
 	
-	for _, logicalLine in ipairs(linesFromText) do
-		if logicalLine == "" then
-			-- Handle empty line.
+	for _, line in ipairs(linesFromText) do
+		if line == "" then -- Empty lines come from manual line breaks.
 			if #currentLine[1] > 0 then
+				textWidth = math.max(textWidth, currentLine[2])
 				table.insert(lines, currentLine)
 				currentLine = {{}, 0}
 			end
 			table.insert(lines, {{}, 0})
 		else
-			-- Process each word in the logical line
-			local wordsInLine = logicalLine:split(" ")
-			for _, word in ipairs(wordsInLine) do
+			-- Process each word in the line.
+			for word in line:gmatch("%S+") do
 				-- Calculate word width.
 				local wordCharacters = {}
 				local wordWidth = 0
@@ -447,9 +493,9 @@ module.Create = function(frame, text, customization)
 				else
 					for index = 1, #word, 1 do
 						local character = word:sub(index, index)
-						local width = getCharacterWidth(character)*characterSpacing
-						table.insert(wordCharacters, {character, width})
-						wordWidth = wordWidth + width
+						local characterWidth = getCharacterWidth(character)*characterSpacing
+						table.insert(wordCharacters, {character, characterWidth})
+						wordWidth += characterWidth
 					end
 				end
 				
@@ -463,22 +509,21 @@ module.Create = function(frame, text, customization)
 				
 				if potentialWidth > frameWidth then
 					if #currentLine[1] > 0 then
+						textWidth = math.max(textWidth, currentLine[2])
 						table.insert(lines, currentLine)
 						currentLine = {{}, 0}
 					end
 					currentLine[2] = wordWidth
 					table.insert(currentLine[1], {wordCharacters, wordWidth})
 				else
-					if #currentLine[1] > 0 then
-						currentLine[2] += spaceWidth
-					end
-					currentLine[2] += wordWidth
+					currentLine[2] = potentialWidth
 					table.insert(currentLine[1], {wordCharacters, wordWidth})
 				end
 			end
 			
-			-- Force line break after logical line processing.
+			-- Line break.
 			if #currentLine[1] > 0 then
+				textWidth = math.max(textWidth, currentLine[2])
 				table.insert(lines, currentLine)
 				currentLine = {{}, 0}
 			end
@@ -486,12 +531,15 @@ module.Create = function(frame, text, customization)
 	end
 	
 	-- Calculate final information and render.
-	local totalTextHeight = #lines*lineHeight
-	local y = 0
+	local textHeight = #lines*lineHeight
+	local y = nil
 	if yAlignment.Name == "Center" then
-		y = math.floor((frameHeight - totalTextHeight)/2)
+		y = math.floor((frameSize.Y - textHeight)/2)
 	elseif yAlignment.Name == "Bottom" then
-		y = frameHeight - totalTextHeight
+		y = frameSize.Y - textHeight
+	else
+		-- Left alignment.
+		y = 0
 	end
 	
 	local globalWordCount = 0 -- In case only word sorting is enabled.
@@ -499,11 +547,14 @@ module.Create = function(frame, text, customization)
 	
 	for lineIndex, line in ipairs(lines) do
 		local lineWidth = line[2]
-		local x = 0
+		local x = nil
 		if xAlignment.Name == "Center" then
 			x = math.round((frameWidth - lineWidth)/2)
 		elseif xAlignment.Name == "Right" then
 			x = frameWidth - lineWidth
+		else
+			-- Left alignment.
+			x = 0
 		end
 		
 		local lineContainer = frame
@@ -517,12 +568,14 @@ module.Create = function(frame, text, customization)
 			local wordContainer = lineContainer
 			if wordSorting then -- Word sorting.
 				wordContainer = Instance.new("Folder")
+				-- Numerical naming.
 				if lineSorting then
 					wordContainer.Name = tostring(wordIndex)
 				else
 					globalWordCount += 1
 					wordContainer.Name = tostring(globalWordCount)
 				end
+				-- Parent it.
 				wordContainer.Parent = lineContainer
 			end
 			
@@ -530,14 +583,23 @@ module.Create = function(frame, text, customization)
 				local width = character[2]
 				
 				local element = createCharacter(character[1], width/characterSpacing, UDim2.fromOffset(x, y))
+				-- Apply stroke if any is given.
+				if stroke then
+					local uiStroke = Instance.new("UIStroke")
+					uiStroke.Thickness = stroke
+					uiStroke.Parent = element
+				end
+				-- Numerical naming.
 				if not lineSorting and not wordSorting then
 					globalCharacterCount += 1
 					element.Name = tostring(globalCharacterCount)
 				else
 					element.Name = tostring(characterIndex)
 				end
+				-- Parent it.
 				element.Parent = wordContainer
 				
+				-- Increment x position for next character.
 				x += width
 			end
 			
@@ -546,6 +608,9 @@ module.Create = function(frame, text, customization)
 		
 		y += lineHeight
 	end
+	
+	-- Save text bounds.
+	frameTextBounds[frame] = Vector2.new(textWidth, textHeight)
 end
 
 return table.freeze(module) :: Module
