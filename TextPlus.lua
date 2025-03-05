@@ -12,7 +12,7 @@ TTTTTTTTTTTTTTTTTTTTTT
          TTTTTT          eeeeeeeeeeeeee      xxxxxx    xxxxx     ttttttttttttt          +++++       
          TTTTTT         eeeeeee   eeeeee      xxxxxx  xxxxx      ttttttttttttt          +++++       
          TTTTTT        eeeeee       eeeee      xxxxxxxxxxx          tttttt              +++++++++++
-         TTTTTT        eeeeeeeeeeeeSeeeee       xxxxxxxxxx          tttttt       +++++++++++++++++++
+         TTTTTT        eeeeeeeeeeeeeeeeee       xxxxxxxxxx          tttttt       +++++++++++++++++++
          TTTTTT       eeeeeeeeeeeeeeeeeee        xxxxxxxxx          tttttt       +++++++++++++++++++
           TTTTTT       eeeee           ee       xxxxxxxxxxx         tttttt        +++   +++++       
           TTTTTT       eeeeee                   xxxxx xxxxxx       tttttt                +++++      
@@ -25,6 +25,7 @@ A lightweight, open-source text rendering module for Roblox,
 featuring custom fonts and fine-control over all characters.
 
 Github: https://github.com/AlexanderLindholt/TextPlus
+Devforum: https://devforum.roblox.com/t/text%EF%BD%9Ccustom-fonts-fine-control/3521684
 
 --------------------------------------------------------------------------------
 MIT License
@@ -63,6 +64,8 @@ local customFonts = require(script.CustomFonts)
 local defaultSize = 14
 local defaultColor = Color3.new(0, 0, 0)
 local defaultTransparency = 0
+local defaultStrokeSize = 1
+local defaultStrokeColor = Color3.new(0, 0, 0)
 local defaultFont = Font.new("rbxasset://fonts/families/SourceSansPro.json")
 local defaultLineHeight = 1
 local defaultCharacterSpacing = 1
@@ -70,26 +73,30 @@ local defaultXAlignment = Enum.TextXAlignment.Left
 local defaultYAlignment = Enum.TextYAlignment.Top
 local defaultWordSorting = false
 local defaultLineSorting = false
+local defaultDynamic = false
 
 local customizationOptions = {
 	Size = true,
 	Font = true,
 	Color = true,
 	Transparency = true,
-	Stroke = true,
+	StrokeSize = true,
+	StrokeColor = true,
 	LineHeight = true,
 	CharacterSpacing = true,
 	XAlignment = true,
 	YAlignment = true,
 	WordSorting = true,
 	LineSorting = true,
+	Dynamic = true
 }
 
 local frameCustomizations = setmetatable({}, {__mode = "k"})
 local frameTextBounds = setmetatable({}, {__mode = "k"})
+local frameResizeConnections = setmetatable({}, {__mode = "k"})
 
 local textBoundsParams = Instance.new("GetTextBoundsParams")
-textBoundsParams.Size = 100 -- Maximum size.
+textBoundsParams.Size = 100 -- Size limit for Roblox built-in font rendering.
 local characterWidthCache = {}
 
 do
@@ -218,13 +225,15 @@ type Customization = {
 	Font: Font?,
 	Color: Color3?,
 	Transparency: number?,
-	Stroke: number?,
+	StrokeSize: number?,
+	StrokeColor: Color3?,
 	LineHeight: number?,
 	CharacterSpacing: number?,
 	XAlignment: Enum.TextXAlignment?,
 	YAlignment: Enum.TextYAlignment?,
 	WordSorting: boolean?,
-	LineSorting: boolean?
+	LineSorting: boolean?,
+	Dynamic: boolean?
 }
 type Module = {
 	Create: (frame: Frame, text: string, customization: Customization?) -> (),
@@ -274,109 +283,8 @@ module.GetCharacters = function(frame)
 	return characters
 end
 
-local function correctCustomization(customization)
-	local empty = true
-	for _, _ in pairs(customization) do
-		empty = false
-		break
-	end
-	if empty then
-		-- Apply defaults.
-		customization.Font = defaultFont
-		customization.Size = defaultSize
-		customization.Color = defaultColor
-		customization.Transparency = defaultTransparency
-		customization.LineHeight = defaultLineHeight
-		customization.CharacterSpacing = defaultCharacterSpacing
-		customization.XAlignment = defaultXAlignment
-		customization.YAlignment = defaultYAlignment
-		customization.WordSorting = defaultWordSorting
-		customization.LineSorting = defaultLineSorting
-	else
-		-- Correct or apply defaults.
-		if typeof(customization.Font) ~= "Font" then
-			customization.Font = defaultFont
-		end
-		if type(customization.Size) ~= "number" then
-			customization.Size = defaultSize
-		elseif customization.Size < 1 then
-			customization.Size = 1
-		end
-		if type(customization.LineHeight) ~= "number" then
-			customization.LineHeight = defaultLineHeight
-		elseif customization.LineHeight < 0 then
-			customization.LineHeight = 0
-		elseif customization.LineHeight > 3 then
-			customization.LineHeight = 3
-		end
-		if type(customization.CharacterSpacing) ~= "number" then
-			customization.CharacterSpacing = defaultCharacterSpacing
-		elseif customization.CharacterSpacing < 0 then
-			customization.CharacterSpacing = 0
-		elseif customization.CharacterSpacing > 3 then
-			customization.CharacterSpacing = 3
-		end
-		if typeof(customization.Color) ~= "Color3" then
-			customization.Color = defaultColor
-		end
-		if type(customization.Transparency) ~= "number" then
-			customization.Transparency = defaultTransparency
-		end
-		if type(customization.Stroke) ~= "number" or customization.Stroke <= 0 then
-			customization.Stroke = nil
-		end
-		if typeof(customization.XAlignment) ~= "EnumItem" or customization.XAlignment.EnumType ~= Enum.TextXAlignment then
-			customization.XAlignment = defaultXAlignment
-		end
-		if typeof(customization.YAlignment) ~= "EnumItem" or customization.YAlignment.EnumType ~= Enum.TextYAlignment then
-			customization.YAlignment = defaultYAlignment
-		end
-		if type(customization.WordSorting) ~= "boolean" then
-			customization.WordSorting = defaultWordSorting
-		end
-		if type(customization.LineSorting) ~= "boolean" then
-			customization.LineSorting = defaultLineSorting
-		end
-	end
-end
-module.Create = function(frame, text, customization)
-	-- Argument errors.
-	if not text then error("No text received.") end
-	if text == "" then error("Use 'frame:ClearAllChildren()' instead, if you want to clear the text.") end
-	if typeof(frame) ~= "Instance" or not frame:IsA("Frame") then error("No frame received.") end
-	
-	-- Handle customization.
-	if frameCustomizations[frame] then
-		if type(customization) == "table" then
-			-- Merge customizations.
-			local newCustomization = customization
-			customization = frameCustomizations[frame]
-			for key, value in pairs(newCustomization) do
-				if customizationOptions[key] then
-					customization[key] = value
-				end
-			end
-			-- Correct invalid customizations.
-			correctCustomization(customization)
-		else
-			customization = frameCustomizations[frame]
-		end
-	else
-		-- Ensure the customization is a table.
-		if type(customization) ~= "table" then
-			customization = {}
-		end
-		-- Remove invalid customizations.
-		for key, _ in pairs(customization) do
-			if not customizationOptions[key] then
-				customization[key] = nil
-			end
-		end
-		-- Correct invalid customizations.
-		correctCustomization(customization)
-	end
-	
-	-- Clear any content that may interfere.
+local function create(frame, text, customization)
+	-- Clear previous characters and any content, that may interfere.
 	frame:ClearAllChildren()
 	
 	-- Customization references.
@@ -384,16 +292,14 @@ module.Create = function(frame, text, customization)
 	local size = customization.Size
 	local color = customization.Color
 	local transparency = customization.Transparency
-	local stroke = customization.Stroke
+	local strokeSize = customization.StrokeSize
+	local strokeColor = customization.StrokeColor
 	local lineHeight = customization.LineHeight*size -- Multiply by size to get it from scale to pixels.
 	local characterSpacing = customization.CharacterSpacing
 	local xAlignment = customization.XAlignment
 	local yAlignment = customization.YAlignment
 	local wordSorting = customization.WordSorting
 	local lineSorting = customization.LineSorting
-	
-	-- Save customization.
-	frameCustomizations[frame] = customization
 	
 	-- Setup character functions.
 	local getCharacterWidth = nil
@@ -429,9 +335,10 @@ module.Create = function(frame, text, customization)
 				textLabel.Size = UDim2.fromOffset(width, size)
 				textLabel.Position = position
 				-- Apply stroke if any is given.
-				if stroke then
+				if strokeSize then
 					local uiStroke = Instance.new("UIStroke")
-					uiStroke.Thickness = stroke
+					uiStroke.Thickness = strokeSize
+					uiStroke.Color = strokeColor
 					uiStroke.Parent = textLabel
 				end
 				-- Return character instance.
@@ -546,7 +453,7 @@ module.Create = function(frame, text, customization)
 	local textHeight = #lines*lineHeight
 	local y = nil
 	if yAlignment.Name == "Center" then
-		y = math.floor((frameSize.Y - textHeight)/2)
+		y = math.round((frameSize.Y - textHeight)/2)
 	elseif yAlignment.Name == "Bottom" then
 		y = frameSize.Y - textHeight
 	else
@@ -569,16 +476,20 @@ module.Create = function(frame, text, customization)
 			x = 0
 		end
 		
+		-- Line sorting.
 		local lineContainer = frame
-		if lineSorting then -- Line sorting.
+		if lineSorting then
 			lineContainer = Instance.new("Folder")
 			lineContainer.Name = tostring(lineIndex)
 			lineContainer.Parent = frame
 		end
 		
+		-- Create words.
 		for wordIndex, word in ipairs(line[1]) do
 			local wordContainer = lineContainer
-			if wordSorting then -- Word sorting.
+			
+			-- Word sorting.
+			if wordSorting then
 				wordContainer = Instance.new("Folder")
 				-- Numerical naming.
 				if lineSorting then
@@ -591,6 +502,7 @@ module.Create = function(frame, text, customization)
 				wordContainer.Parent = lineContainer
 			end
 			
+			-- Create characters.
 			for characterIndex, character in ipairs(word[1]) do
 				local width = character[2]
 				
@@ -609,14 +521,154 @@ module.Create = function(frame, text, customization)
 				x += width
 			end
 			
+			-- Add space before the next word.
 			x += spaceWidth
 		end
 		
+		-- Add space before the next line.
 		y += lineHeight
 	end
 	
 	-- Save text bounds.
 	frameTextBounds[frame] = Vector2.new(textWidth, textHeight)
+end
+local function handleCustomization(frame, text, customization)
+	local empty = true
+	for _, _ in pairs(customization) do
+		empty = false
+		break
+	end
+	if empty then
+		-- Apply defaults.
+		customization.Font = defaultFont
+		customization.Size = defaultSize
+		customization.Color = defaultColor
+		customization.Transparency = defaultTransparency
+		customization.LineHeight = defaultLineHeight
+		customization.CharacterSpacing = defaultCharacterSpacing
+		customization.XAlignment = defaultXAlignment
+		customization.YAlignment = defaultYAlignment
+	else
+		-- Correct or apply defaults.
+		if typeof(customization.Font) ~= "Font" then
+			customization.Font = defaultFont
+		end
+		if type(customization.Size) ~= "number" then
+			customization.Size = defaultSize
+		elseif customization.Size < 1 then
+			customization.Size = 1
+		end
+		if type(customization.LineHeight) ~= "number" then
+			customization.LineHeight = defaultLineHeight
+		elseif customization.LineHeight < 0 then
+			customization.LineHeight = 0
+		elseif customization.LineHeight > 3 then
+			customization.LineHeight = 3
+		end
+		if type(customization.CharacterSpacing) ~= "number" then
+			customization.CharacterSpacing = defaultCharacterSpacing
+		elseif customization.CharacterSpacing < 0 then
+			customization.CharacterSpacing = 0
+		elseif customization.CharacterSpacing > 3 then
+			customization.CharacterSpacing = 3
+		end
+		if typeof(customization.Color) ~= "Color3" then
+			customization.Color = defaultColor
+		end
+		if type(customization.Transparency) ~= "number" then
+			customization.Transparency = defaultTransparency
+		end
+		
+		if type(customization.StrokeSize) ~= "number" then
+			if typeof(customization.StrokeColor) == "Color3" then
+				customization.StrokeSize = defaultStrokeSize
+			else
+				customization.StrokeSize = nil
+			end
+		elseif customization.StrokeSize <= 0 then
+			customization.StrokeSize = nil
+		elseif typeof(customization.StrokeColor) ~= "Color3" then
+			customization.StrokeColor = defaultStrokeColor
+		end
+		
+		if typeof(customization.XAlignment) ~= "EnumItem" or customization.XAlignment.EnumType ~= Enum.TextXAlignment then
+			customization.XAlignment = defaultXAlignment
+		end
+		if typeof(customization.YAlignment) ~= "EnumItem" or customization.YAlignment.EnumType ~= Enum.TextYAlignment then
+			customization.YAlignment = defaultYAlignment
+		end
+		if type(customization.WordSorting) ~= "boolean" or not customization.WordSorting then
+			customization.WordSorting = nil
+		end
+		if type(customization.LineSorting) ~= "boolean" or not customization.LineSorting then
+			customization.LineSorting = nil
+		end
+		
+		if type(customization.Dynamic) ~= "boolean" then
+			customization.Dynamic = nil
+		else
+			if frameResizeConnections[frame] then
+				frameResizeConnections[frame] = nil
+			end
+			if customization.Dynamic then
+				frameResizeConnections[frame] = frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+					create(frame, text, customization)
+				end)
+			else
+				customization.Dynamic = nil
+			end
+		end
+	end
+end
+module.Create = function(frame, text, customization)
+	-- Argument errors.
+	if not text then error("No text received.") end
+	if text == "" then error("Use 'frame:ClearAllChildren()' instead, if you want to clear the text.") end
+	if typeof(frame) ~= "Instance" or not frame:IsA("Frame") then error("No frame received.") end
+	
+	-- Handle customization.
+	if frameCustomizations[frame] then
+		if type(customization) == "table" then
+			-- Merge customizations.
+			local newCustomization = customization
+			customization = frameCustomizations[frame]
+			for key, value in pairs(newCustomization) do
+				if customizationOptions[key] then
+					if value == false then
+						customization[key] = nil
+					else
+						customization[key] = value
+					end
+				else
+					warn('No customization option called "'..key..'".')
+				end
+			end
+			-- Correct invalid customizations.
+			handleCustomization(frame, text, customization)
+		else
+			customization = frameCustomizations[frame]
+		end
+	else
+		-- Ensure the customization is a table.
+		if type(customization) ~= "table" then
+			customization = {}
+		end
+		-- Remove invalid customizations.
+		for key, _ in pairs(customization) do
+			if not customizationOptions[key] then
+				customization[key] = nil
+				warn('No customization option called "'..key..'".')
+			end
+		end
+		-- Correct invalid customizations.
+		handleCustomization(frame, text, customization)
+	end
+	
+	-- Save customization.
+	frameCustomizations[frame] = customization
+	
+	-- Create the text.
+	create(frame, text, customization)
 end
 
 return table.freeze(module) :: Module
