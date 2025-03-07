@@ -24,8 +24,13 @@ TTTTTTTTTTTTTTTTTTTTTT
 A lightweight, open-source text rendering module for Roblox,
 featuring custom fonts and fine-control over all characters.
 
-Github: https://github.com/AlexanderLindholt/TextPlus
-Devforum: https://devforum.roblox.com/t/text%EF%BD%9Ccustom-fonts-fine-control/3521684
+
+GitHub:
+https://github.com/AlexanderLindholt/TextPlus
+
+Devforum:
+https://devforum.roblox.com/t/text%EF%BD%9Ccustom-fonts-fine-control/3521684
+
 
 --------------------------------------------------------------------------------
 MIT License
@@ -73,7 +78,6 @@ local defaultXAlignment = Enum.TextXAlignment.Left
 local defaultYAlignment = Enum.TextYAlignment.Top
 local defaultWordSorting = false
 local defaultLineSorting = false
-local defaultDynamic = false
 
 local customizationOptions = {
 	Size = true,
@@ -549,7 +553,7 @@ local function handleCustomization(frame, text, customization)
 		customization.XAlignment = defaultXAlignment
 		customization.YAlignment = defaultYAlignment
 	else
-		-- Correct or apply defaults.
+		-- Correct customizations.
 		if typeof(customization.Font) ~= "Font" then
 			customization.Font = defaultFont
 		end
@@ -584,11 +588,18 @@ local function handleCustomization(frame, text, customization)
 				customization.StrokeSize = defaultStrokeSize
 			else
 				customization.StrokeSize = nil
+				customization.StrokeColor = nil
 			end
 		elseif customization.StrokeSize <= 0 then
 			customization.StrokeSize = nil
-		elseif typeof(customization.StrokeColor) ~= "Color3" then
-			customization.StrokeColor = defaultStrokeColor
+			customization.StrokeColor = nil
+		else
+			if typeof(customization.StrokeColor) == "Color3" then
+				customization.StrokeSize = defaultStrokeSize
+			else
+				customization.StrokeSize = nil
+				customization.StrokeColor = nil
+			end
 		end
 		
 		if typeof(customization.XAlignment) ~= "EnumItem" or customization.XAlignment.EnumType ~= Enum.TextXAlignment then
@@ -604,20 +615,19 @@ local function handleCustomization(frame, text, customization)
 			customization.LineSorting = nil
 		end
 		
-		if type(customization.Dynamic) ~= "boolean" then
-			customization.Dynamic = nil
-		else
+		if type(customization.Dynamic) == "boolean" then
+			-- Dynamic feature.
 			if frameResizeConnections[frame] then
+				frameResizeConnections:Disconnect()
 				frameResizeConnections[frame] = nil
 			end
 			if customization.Dynamic then
 				frameResizeConnections[frame] = frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
 					create(frame, text, customization)
 				end)
-			else
-				customization.Dynamic = nil
 			end
 		end
+		customization.Dynamic = nil
 	end
 end
 module.Create = function(frame, text, customization)
@@ -643,7 +653,7 @@ module.Create = function(frame, text, customization)
 					warn('No customization option called "'..key..'".')
 				end
 			end
-			-- Correct invalid customizations.
+			-- Handle new (merged) customization.
 			handleCustomization(frame, text, customization)
 		else
 			customization = frameCustomizations[frame]
