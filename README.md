@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./Full logo.png"></img>
+<img src="./Logo.png"></img>
 
 A lightweight, open-source text rendering module for Roblox,<br>
 featuring custom fonts and fine-control over all characters.
