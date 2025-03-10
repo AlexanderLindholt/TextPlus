@@ -66,6 +66,7 @@ local playerGui = player.PlayerGui
 
 local customFonts = require(script.CustomFonts)
 
+-- Defaults.
 local defaultSize = 14
 local defaultColor = Color3.new(0, 0, 0)
 local defaultTransparency = 0
@@ -79,6 +80,7 @@ local defaultYAlignment = Enum.TextYAlignment.Top
 local defaultWordSorting = false
 local defaultLineSorting = false
 
+-- Customization options list for validity checks.
 local customizationOptions = {
 	Size = true,
 	Font = true,
@@ -95,149 +97,148 @@ local customizationOptions = {
 	Dynamic = true
 }
 
+-- Frame data tables.
 local frameCustomizations = setmetatable({}, {__mode = "k"})
 local frameTextBounds = setmetatable({}, {__mode = "k"})
-local frameResizeConnections = setmetatable({}, {__mode = "k"})
+local frameResizeConnections = setmetatable({}, {__mode = "k"}) -- For dynamic feature.
 
+-- Built-in font rendering stuff.
 local textBoundsParams = Instance.new("GetTextBoundsParams")
 textBoundsParams.Size = 100 -- Size limit for Roblox built-in font rendering.
 local characterWidthCache = {}
 
-do
-	local empty = true
-	for _, _ in pairs(customFonts) do
-		empty = false
-		break
-	end
-	if not empty then
-		-- Verify and preload custom fonts.
-		local screenGui = Instance.new("ScreenGui")
-		screenGui.Parent = playerGui
-		
-		local loading = 0
-		local function load(image)
-			local label = Instance.new("ImageLabel")
-			label.Size = UDim2.fromOffset(1, 1)
-			label.BackgroundTransparency = 1
-			label.ImageTransparency = 0.999
-			label.ResampleMode = Enum.ResamplerMode.Pixelated
-			label.Image = "rbxassetid://"..tostring(image)
-			label.Parent = screenGui
-			coroutine.resume(coroutine.create(function()
-				repeat
-					task.wait()
-				until label.IsLoaded == true
-				
-				if loading == 1 then
-					screenGui:Destroy()
-				else
-					loading -= 1
-				end
-			end))
-		end
-		local function charactersValid(characters)
-			for key, value in pairs(characters) do
-				if type(key) ~= "string" then return end
-				if type(value) ~= "table" then return end
-				if typeof(value[1]) ~= "Vector2" then return end
-				if typeof(value[2]) ~= "Vector2" then return end
-				if typeof(value[3]) ~= "Vector2" then return end
-				if type(value[4]) ~= "number" then return end
+-- Verify and preload custom fonts if any.
+if next(customFonts) then
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Parent = playerGui
+
+	local loading = 0
+	local function load(image) -- For preloading the font image assets.
+		local label = Instance.new("ImageLabel")
+		label.Size = UDim2.fromOffset(1, 1)
+		label.BackgroundTransparency = 1
+		label.ImageTransparency = 0.999
+		label.ResampleMode = Enum.ResamplerMode.Pixelated
+		label.Image = "rbxassetid://"..tostring(image)
+		label.Parent = screenGui
+		coroutine.resume(coroutine.create(function()
+			repeat
+				task.wait()
+			until label.IsLoaded == true
+			
+			if loading == 1 then
+				screenGui:Destroy()
+			else
+				loading -= 1
 			end
-			return true
+		end))
+	end
+	local function charactersValid(characters) -- Function to verify the format of the characters in a font.
+		for key, value in pairs(characters) do
+			if type(key) ~= "string" then return end
+			if type(value) ~= "table" then return end
+			if typeof(value[1]) ~= "Vector2" then return end
+			if typeof(value[2]) ~= "Vector2" then return end
+			if typeof(value[3]) ~= "Vector2" then return end
+			if type(value[4]) ~= "number" then return end
 		end
-		local validWeights = {
-			Thin = true,
-			ExtraLight = true,
-			Light = true,
-			Regular = true,
-			Medium = true,
-			SemiBold = true,
-			Bold = true,
-			ExtraBold = true,
-			Heavy = true
-		}
-		local validStyles = {
-			Normal = true,
-			Italic = true
-		}
-		for fontName, font in pairs(customFonts) do
-			if type(fontName) ~= "string" then
-				warn("A custom font has an invalid name.")
-				customFonts[fontName] = nil
+		return true
+	end
+	local validWeights = {
+		Thin = true,
+		ExtraLight = true,
+		Light = true,
+		Regular = true,
+		Medium = true,
+		SemiBold = true,
+		Bold = true,
+		ExtraBold = true,
+		Heavy = true
+	}
+	local validStyles = {
+		Normal = true,
+		Italic = true
+	}
+	for fontName, font in pairs(customFonts) do
+		-- Font.
+		if type(fontName) ~= "string" then
+			warn("A custom font has an invalid name.")
+			customFonts[fontName] = nil
+			continue
+		end
+		if type(font) ~= "table" then
+			warn("Missing table for custom font '"..fontName.."'.")
+			customFonts[fontName] = nil
+			continue
+		end
+		for weightName, weight in pairs(font) do
+			-- Weight.
+			if not validWeights[weightName] then
+				warn("Custom font '"..fontName.."' has an invalid weight.")
+				font[weightName] = nil
 				continue
 			end
 			if type(font) ~= "table" then
-				warn("Missing table for custom font '"..fontName.."'.")
-				customFonts[fontName] = nil
+				warn("Missing table for the '"..weightName.."' weight in custom font '"..fontName.."'.")
+				font[weightName] = nil
 				continue
 			end
-			for weightName, weight in pairs(font) do
-				if not validWeights[weightName] then
-					warn("Custom font '"..fontName.."' has an invalid weight.")
-					font[weightName] = nil
+			for styleName, style in pairs(weight) do
+				-- Style.
+				if not validStyles[styleName] then
+					warn("The '"..weightName.."' weight for custom font '"..fontName.."' has an invalid style.")
+					weight[styleName] = nil
 					continue
 				end
 				if type(font) ~= "table" then
-					warn("Missing table for the '"..weightName.."' weight in custom font '"..fontName.."'.")
-					font[weightName] = nil
+					warn("Missing table for the '"..styleName.."' style in the '"..weightName.."' weight for custom font '"..fontName.."'.")
+					weight[styleName] = nil
 					continue
 				end
-				for styleName, style in pairs(weight) do
-					if not validStyles[styleName] then
-						warn("The '"..weightName.."' weight for custom font '"..fontName.."' has an invalid style.")
-						weight[styleName] = nil
-						continue
-					end
-					if type(font) ~= "table" then
-						warn("Missing table for the '"..styleName.."' style in the '"..weightName.."' weight for custom font '"..fontName.."'.")
-						weight[styleName] = nil
-						continue
-					end
-					if type(style.Image) ~= "number" then
-						warn("Missing an image id for the '"..styleName.."' style in the '"..weightName.."' weight for custom font '"..fontName.."'.")
-						weight[styleName] = nil
-						continue
-					end
-					if type(style.Size) ~= "number" then
-						warn("Missing a size for the '"..styleName.."' style in the '"..weightName.."' weight for custom font '"..fontName.."'.")
-						weight[styleName] = nil
-						continue
-					end
-					if type(style.Characters) ~= "table" then
-						warn("Missing characters for the '"..styleName.."' style in the '"..weightName.."' weight for custom font '"..fontName.."'.")
-						weight[styleName] = nil
-						continue
-					end
-					if not charactersValid(style.Characters) then
-						warn("Invalid characters for the '"..styleName.."' style in the '"..weightName.."' weight for custom font '"..fontName.."'.")
-						weight[styleName] = nil
-						continue
-					end
-					
-					-- Passed all checks, so preload it for later use.
-					loading += 1
-					load(style.Image)
+				if type(style.Image) ~= "number" then
+					warn("Missing an image id for the '"..styleName.."' style in the '"..weightName.."' weight for custom font '"..fontName.."'.")
+					weight[styleName] = nil
+					continue
 				end
+				if type(style.Size) ~= "number" then
+					warn("Missing a size for the '"..styleName.."' style in the '"..weightName.."' weight for custom font '"..fontName.."'.")
+					weight[styleName] = nil
+					continue
+				end
+				if type(style.Characters) ~= "table" then
+					warn("Missing characters for the '"..styleName.."' style in the '"..weightName.."' weight for custom font '"..fontName.."'.")
+					weight[styleName] = nil
+					continue
+				end
+				if not charactersValid(style.Characters) then
+					warn("Invalid characters for the '"..styleName.."' style in the '"..weightName.."' weight for custom font '"..fontName.."'.")
+					weight[styleName] = nil
+					continue
+				end
+				
+				-- Passed all checks, so preload it.
+				loading += 1
+				load(style.Image)
 			end
 		end
 	end
 end
 
+-- Types.
 type Customization = {
-	Size: number?,
-	Font: Font?,
-	Color: Color3?,
-	Transparency: number?,
-	StrokeSize: number?,
-	StrokeColor: Color3?,
-	LineHeight: number?,
-	CharacterSpacing: number?,
-	XAlignment: Enum.TextXAlignment?,
-	YAlignment: Enum.TextYAlignment?,
-	WordSorting: boolean?,
-	LineSorting: boolean?,
-	Dynamic: boolean?
+	Size: number,
+	Font: Font,
+	Color: Color3,
+	Transparency: number,
+	StrokeSize: number,
+	StrokeColor: Color3,
+	LineHeight: number,
+	CharacterSpacing: number,
+	XAlignment: Enum.TextXAlignment,
+	YAlignment: Enum.TextYAlignment,
+	WordSorting: boolean,
+	LineSorting: boolean,
+	Dynamic: boolean
 }
 type Module = {
 	Create: (frame: Frame, text: string, customization: Customization?) -> (),
@@ -246,6 +247,7 @@ type Module = {
 	GetCharacters: (frame: Frame) -> {TextLabel | ImageLabel}
 }
 
+-- Module.
 local module = {}
 
 module.GetTextBounds = function(frame)
