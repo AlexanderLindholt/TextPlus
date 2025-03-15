@@ -5,7 +5,7 @@
 A lightweight, open-source text rendering module for Roblox,<br>
 featuring custom fonts and fine-control over all characters.
 
-[<img src="https://raw.githubusercontent.com/AlexanderLindholt/LinkButtons/refs/heads/main/Static/Module.png"></img>](https://create.roblox.com/store/asset/138658986432597) [<img src="https://raw.githubusercontent.com/AlexanderLindholt/LinkButtons/refs/heads/main/Static/Devforum.png"></img>](https://devforum.roblox.com/t/text%EF%BD%9Ccustom-fonts-fine-control/3521684)
+[<img src="https://raw.githubusercontent.com/AlexanderLindholt/LinkButtons/refs/heads/main/Static/Module.png"></img>](https://create.roblox.com/store/asset/138658986432597) ​ [<img src="https://raw.githubusercontent.com/AlexanderLindholt/LinkButtons/refs/heads/main/Static/Devforum.png"></img>](https://devforum.roblox.com/t/text%EF%BD%9Ccustom-fonts-fine-control/3521684)
 </div>
 <br>
 ​<br>
