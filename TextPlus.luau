@@ -62,7 +62,6 @@ local TextService = game:GetService("TextService")
 local Players = game:GetService("Players")
 
 local player = Players.LocalPlayer
-local playerGui = player.PlayerGui
 
 local customFonts = require(script.CustomFonts)
 
@@ -109,29 +108,34 @@ local characterWidthCache = {}
 
 -- Verify and preload custom fonts if any.
 if next(customFonts) then
-	local screenGui = Instance.new("ScreenGui")
-	screenGui.Parent = playerGui
+	local screenGui = nil
+	local loading = nil
+	local load = nil
+	if player then -- If client.
+		screenGui = Instance.new("ScreenGui")
+		screenGui.Parent = player.PlayerGui
 
-	local loading = 0
-	local function load(image) -- For preloading the font image assets.
-		local label = Instance.new("ImageLabel")
-		label.Size = UDim2.fromOffset(1, 1)
-		label.BackgroundTransparency = 1
-		label.ImageTransparency = 0.999
-		label.ResampleMode = Enum.ResamplerMode.Pixelated
-		label.Image = "rbxassetid://"..tostring(image)
-		label.Parent = screenGui
-		coroutine.resume(coroutine.create(function()
-			repeat
-				task.wait()
-			until label.IsLoaded == true
-			
-			if loading == 1 then
-				screenGui:Destroy()
-			else
-				loading -= 1
-			end
-		end))
+		loading = 0
+		load = function(image) -- For preloading the font image assets.
+			local label = Instance.new("ImageLabel")
+			label.Size = UDim2.fromOffset(1, 1)
+			label.BackgroundTransparency = 1
+			label.ImageTransparency = 0.999
+			label.ResampleMode = Enum.ResamplerMode.Pixelated
+			label.Image = "rbxassetid://"..tostring(image)
+			label.Parent = screenGui
+			coroutine.resume(coroutine.create(function()
+				repeat
+					task.wait()
+				until label.IsLoaded == true
+				
+				if loading == 1 then
+					screenGui:Destroy()
+				else
+					loading -= 1
+				end
+			end))
+		end
 	end
 	local function charactersValid(characters) -- Function to verify the format of the characters in a font.
 		for key, value in pairs(characters) do
@@ -217,8 +221,10 @@ if next(customFonts) then
 				end
 				
 				-- Passed all checks, so preload it.
-				loading += 1
-				load(style.Image)
+				if player then -- If client.
+					loading += 1
+					load(style.Image)
+				end
 			end
 		end
 	end
