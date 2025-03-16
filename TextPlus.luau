@@ -672,7 +672,7 @@ module.Create = function(frame, text, customization)
 			customization = {}
 		end
 		-- Remove invalid customizations.
-		for key, _ in pairs(customization) do
+		for key in pairs(customization) do
 			if not customizationOptions[key] then
 				customization[key] = nil
 				warn('No customization option called "'..key..'".')
