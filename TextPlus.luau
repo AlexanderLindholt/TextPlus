@@ -70,7 +70,7 @@ local defaultSize = 14
 local defaultColor = Color3.new(0, 0, 0)
 local defaultTransparency = 0
 local defaultRotation = 0
-local defaultOffset = Vector2.zero
+local defaultOffset = UDim2.fromOffset(0, 0)
 local defaultStrokeSize = 1
 local defaultStrokeColor = Color3.new(0, 0, 0)
 local defaultFont = Font.new("rbxasset://fonts/families/SourceSansPro.json")
@@ -252,7 +252,7 @@ type Customization = {
 	Color: Color3,
 	Transparency: number,
 	Rotation: number,
-	Offset: Vector2,
+	Offset: UDim2,
 	StrokeSize: number,
 	StrokeColor: Color3,
 	LineHeight: number,
@@ -620,7 +620,7 @@ local function handleCustomization(frame, text, customization)
 		if type(customization.Rotation) ~= "number" then
 			customization.Rotation = defaultRotation
 		end
-		if typeof(customization.Offset) ~= "Vector2" then
+		if typeof(customization.Offset) ~= "UDim2" then
 			customization.Offset = defaultOffset
 		end
 		
