@@ -69,22 +69,26 @@ local customFonts = require(script.CustomFonts)
 local defaultSize = 14
 local defaultColor = Color3.new(0, 0, 0)
 local defaultTransparency = 0
+local defaultRotation = 0
+local defaultOffset = Vector2.zero
 local defaultStrokeSize = 1
 local defaultStrokeColor = Color3.new(0, 0, 0)
 local defaultFont = Font.new("rbxasset://fonts/families/SourceSansPro.json")
 local defaultLineHeight = 1
 local defaultCharacterSpacing = 1
-local defaultXAlignment = Enum.TextXAlignment.Left
-local defaultYAlignment = Enum.TextYAlignment.Top
+local defaultXAlignment = "Left"
+local defaultYAlignment = "Top"
 local defaultWordSorting = false
 local defaultLineSorting = false
 
--- Customization options list for validity checks.
+-- Lists for validity checks.
 local customizationOptions = {
 	Size = true,
 	Font = true,
 	Color = true,
 	Transparency = true,
+	Rotation = true,
+	Offset = true,
 	StrokeSize = true,
 	StrokeColor = true,
 	LineHeight = true,
@@ -94,6 +98,17 @@ local customizationOptions = {
 	WordSorting = true,
 	LineSorting = true,
 	Dynamic = true
+}
+
+local xAlignments = {
+	Left = true,
+	Center = true,
+	Right = true
+}
+local yAlignments = {
+	Top = true,
+	Center = true,
+	Bottom = true
 }
 
 -- Frame data tables.
@@ -163,7 +178,7 @@ if next(customFonts) then
 		Normal = true,
 		Italic = true
 	}
-	for fontName, font in pairs(customFonts) do
+	for fontName, font in customFonts do
 		-- Font.
 		if type(fontName) ~= "string" then
 			warn("A custom font has an invalid name.")
@@ -236,12 +251,14 @@ type Customization = {
 	Font: Font,
 	Color: Color3,
 	Transparency: number,
+	Rotation: number,
+	Offset: Vector2,
 	StrokeSize: number,
 	StrokeColor: Color3,
 	LineHeight: number,
 	CharacterSpacing: number,
-	XAlignment: Enum.TextXAlignment,
-	YAlignment: Enum.TextYAlignment,
+	XAlignment: "Left" | "Center" | "Right",
+	YAlignment: "Top" | "Center" | "Bottom",
 	WordSorting: boolean,
 	LineSorting: boolean,
 	Dynamic: boolean
@@ -304,6 +321,8 @@ local function create(frame, text, customization)
 	local size = customization.Size
 	local color = customization.Color
 	local transparency = customization.Transparency
+	local rotation = customization.Rotation
+	local localOffset = customization.Offset
 	local strokeSize = customization.StrokeSize
 	local strokeColor = customization.StrokeColor
 	local lineHeight = customization.LineHeight*size -- Multiply by size to get it from scale to pixels.
@@ -345,7 +364,8 @@ local function create(frame, text, customization)
 				textLabel.TextXAlignment = Enum.TextXAlignment.Left
 				textLabel.TextYAlignment = yAlignment
 				textLabel.Size = UDim2.fromOffset(width, size)
-				textLabel.Position = position
+				textLabel.Rotation = rotation
+				textLabel.Position = position + localOffset
 				-- Apply stroke if any is given.
 				if strokeSize then
 					local uiStroke = Instance.new("UIStroke")
@@ -365,10 +385,17 @@ local function create(frame, text, customization)
 			
 			-- Setup custom font character functions.
 			local image = "rbxassetid://"..tostring(customFont.Image)
-			local fontSize = customFont.Size
+			local invertedFontSize = 1/customFont.Size -- To save on expensive division.
 			local characters = customFont.Characters
+			--[[
+			Character data:
+			  [1] = Vector2 - Size
+			  [2] = Vector2 - Image offset
+			  [3] = Vector2 - Offset
+			  [4] = number - X advance
+			]]--
 			getCharacterWidth = function(character)
-				return characters[character][4]/fontSize*size
+				return characters[character][4]*invertedFontSize*size
 			end
 			createCharacter = function(character, width, position)
 				-- Create and stylize.
@@ -383,9 +410,10 @@ local function create(frame, text, customization)
 				imageLabel.ImageRectSize = characterSize
 				imageLabel.ImageRectOffset = data[2]
 				-- Transformation.
-				imageLabel.Size = UDim2.fromOffset(characterSize.X/fontSize*size, characterSize.Y/fontSize*size)
-				local offset = data[3]/fontSize*size
-				imageLabel.Position = position + UDim2.fromOffset(offset.X, offset.Y)
+				imageLabel.Size = UDim2.fromOffset(characterSize.X*invertedFontSize*size, characterSize.Y*invertedFontSize*size)
+				local offset = data[3]*invertedFontSize*size
+				imageLabel.Position = position + UDim2.fromOffset(offset.X, offset.Y) + localOffset
+				imageLabel.Rotation = rotation
 				-- Return character instance.
 				return imageLabel
 			end
@@ -404,7 +432,7 @@ local function create(frame, text, customization)
 	local lines = {}
 	local currentLine = {{}, 0}
 	
-	for _, line in ipairs(linesFromText) do
+	for _, line in linesFromText do
 		if line == "" then -- Empty lines come from manual line breaks.
 			if #currentLine[1] > 0 then
 				textWidth = math.max(textWidth, currentLine[2])
@@ -464,24 +492,26 @@ local function create(frame, text, customization)
 	-- Calculate final information and render.
 	local textHeight = #lines*lineHeight
 	local y = nil
-	if yAlignment.Name == "Center" then
+	if yAlignment == "Center" then
 		y = math.round((frameSize.Y - textHeight)/2)
-	elseif yAlignment.Name == "Bottom" then
+	elseif yAlignment == "Bottom" then
 		y = frameSize.Y - textHeight
 	else
-		-- Left alignment.
+		-- Top alignment.
 		y = 0
 	end
+	
+	local invertedCharacterSpacing = 1/characterSpacing -- To save on expensive division.
 	
 	local globalWordCount = 0 -- In case only word sorting is enabled.
 	local globalCharacterCount = 0 -- In case no sorting is enabled.
 	
-	for lineIndex, line in ipairs(lines) do
+	for lineIndex, line in lines do
 		local lineWidth = line[2]
 		local x = nil
-		if xAlignment.Name == "Center" then
+		if xAlignment == "Center" then
 			x = math.round((frameWidth - lineWidth)/2)
-		elseif xAlignment.Name == "Right" then
+		elseif xAlignment == "Right" then
 			x = frameWidth - lineWidth
 		else
 			-- Left alignment.
@@ -497,7 +527,7 @@ local function create(frame, text, customization)
 		end
 		
 		-- Create words.
-		for wordIndex, word in ipairs(line[1]) do
+		for wordIndex, word in line[1] do
 			local wordContainer = lineContainer
 			
 			-- Word sorting.
@@ -515,10 +545,10 @@ local function create(frame, text, customization)
 			end
 			
 			-- Create characters.
-			for characterIndex, character in ipairs(word[1]) do
+			for characterIndex, character in word[1] do
 				local width = character[2]
 				
-				local element = createCharacter(character[1], width/characterSpacing, UDim2.fromOffset(x, y))
+				local element = createCharacter(character[1], width*invertedCharacterSpacing, UDim2.fromOffset(x, y))
 				-- Numerical naming.
 				if not lineSorting and not wordSorting then
 					globalCharacterCount += 1
@@ -533,11 +563,11 @@ local function create(frame, text, customization)
 				x += width
 			end
 			
-			-- Add space before the next word.
+			-- Add space (space character) before the next word.
 			x += spaceWidth
 		end
 		
-		-- Add space before the next line.
+		-- Add space (line height) before the next line.
 		y += lineHeight
 	end
 	
@@ -545,17 +575,14 @@ local function create(frame, text, customization)
 	frameTextBounds[frame] = Vector2.new(textWidth, textHeight)
 end
 local function handleCustomization(frame, text, customization)
-	local empty = true
-	for _, _ in pairs(customization) do
-		empty = false
-		break
-	end
-	if empty then
+	if not next(customization) then
 		-- Apply defaults.
 		customization.Font = defaultFont
 		customization.Size = defaultSize
 		customization.Color = defaultColor
 		customization.Transparency = defaultTransparency
+		customization.Rotation = defaultRotation
+		customization.Offset = defaultOffset
 		customization.LineHeight = defaultLineHeight
 		customization.CharacterSpacing = defaultCharacterSpacing
 		customization.XAlignment = defaultXAlignment
@@ -590,6 +617,12 @@ local function handleCustomization(frame, text, customization)
 		if type(customization.Transparency) ~= "number" then
 			customization.Transparency = defaultTransparency
 		end
+		if type(customization.Rotation) ~= "number" then
+			customization.Rotation = defaultRotation
+		end
+		if typeof(customization.Offset) ~= "Vector2" then
+			customization.Offset = defaultOffset
+		end
 		
 		if type(customization.StrokeSize) ~= "number" then
 			if typeof(customization.StrokeColor) == "Color3" then
@@ -610,10 +643,10 @@ local function handleCustomization(frame, text, customization)
 			end
 		end
 		
-		if typeof(customization.XAlignment) ~= "EnumItem" or customization.XAlignment.EnumType ~= Enum.TextXAlignment then
+		if not xAlignments[customization.XAlignment] then
 			customization.XAlignment = defaultXAlignment
 		end
-		if typeof(customization.YAlignment) ~= "EnumItem" or customization.YAlignment.EnumType ~= Enum.TextYAlignment then
+		if not yAlignments[customization.YAlignment] then
 			customization.YAlignment = defaultYAlignment
 		end
 		if type(customization.WordSorting) ~= "boolean" or not customization.WordSorting then
@@ -623,16 +656,18 @@ local function handleCustomization(frame, text, customization)
 			customization.LineSorting = nil
 		end
 		
-		if type(customization.Dynamic) == "boolean" then
-			-- Dynamic feature.
-			if frameResizeConnections[frame] then
-				frameResizeConnections:Disconnect()
-				frameResizeConnections[frame] = nil
-			end
-			if customization.Dynamic then
+		-- Dynamic feature.
+		if customization.Dynamic == true then
+			if not frameResizeConnections[frame] then
 				frameResizeConnections[frame] = frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
 					create(frame, text, customization)
 				end)
+			end
+		elseif customization.Dynamic == false then
+			local connection = frameResizeConnections[frame]
+			if connection then
+				connection:Disconnect()
+				frameResizeConnections[frame] = nil
 			end
 		end
 		customization.Dynamic = nil
