@@ -61,8 +61,6 @@ SOFTWARE.
 local TextService = game:GetService("TextService")
 local Players = game:GetService("Players")
 
-local player = Players.LocalPlayer
-
 local customFonts = require(script.CustomFonts)
 
 -- Defaults.
@@ -103,7 +101,8 @@ local customizationOptions = {
 local xAlignments = {
 	Left = true,
 	Center = true,
-	Right = true
+	Right = true,
+	Justified = true
 }
 local yAlignments = {
 	Top = true,
@@ -123,6 +122,7 @@ local characterWidthCache = {}
 
 -- Verify and preload custom fonts if any.
 if next(customFonts) then
+	local player = Players.LocalPlayer
 	local screenGui = nil
 	local loading = nil
 	local load = nil
@@ -257,17 +257,18 @@ type Customization = {
 	StrokeColor: Color3,
 	LineHeight: number,
 	CharacterSpacing: number,
-	XAlignment: "Left" | "Center" | "Right",
+	XAlignment: "Left" | "Center" | "Right" | "Justified",
 	YAlignment: "Top" | "Center" | "Bottom",
 	WordSorting: boolean,
 	LineSorting: boolean,
 	Dynamic: boolean
 }
+type Container = Frame | ScrollingFrame | CanvasGroup
 type Module = {
-	Create: (frame: Frame, text: string, customization: Customization?) -> (),
+	Create: (frame: Container, text: string, customization: Customization?) -> (),
 	
-	GetTextBounds: (frame: Frame) -> Vector2,
-	GetCharacters: (frame: Frame) -> {TextLabel | ImageLabel}
+	GetTextBounds: (frame: Container) -> Vector2,
+	GetCharacters: (frame: Container) -> {TextLabel | ImageLabel}
 }
 
 -- Module.
@@ -275,7 +276,7 @@ local module = {}
 
 module.GetTextBounds = function(frame)
 	-- Argument errors.
-	if typeof(frame) ~= "Instance" or not frame:IsA("Frame") then error("No frame received.") end
+	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame received.") end
 	
 	-- Get and verify text bounds.
 	local textBounds = frameTextBounds[frame]
@@ -286,7 +287,7 @@ module.GetTextBounds = function(frame)
 end
 module.GetCharacters = function(frame)
 	-- Argument errors.
-	if typeof(frame) ~= "Instance" or not frame:IsA("Frame") then error("No frame received.") end
+	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame received.") end
 	
 	-- Gather and return characters.
 	local characters = {}
@@ -492,13 +493,13 @@ local function create(frame, text, customization)
 	-- Calculate final information and render.
 	local textHeight = #lines*lineHeight
 	local y = nil
-	if yAlignment == "Center" then
-		y = math.round((frameSize.Y - textHeight)/2)
-	elseif yAlignment == "Bottom" then
-		y = frameSize.Y - textHeight
-	else
-		-- Top alignment.
+	if yAlignment == "Top" then
 		y = 0
+	elseif yAlignment == "Center" then
+		y = math.round((frameSize.Y - textHeight)/2)
+	else
+		-- Bottom alignment.
+		y = frameSize.Y - textHeight
 	end
 	
 	local invertedCharacterSpacing = 1/characterSpacing -- To save on expensive division.
@@ -507,15 +508,21 @@ local function create(frame, text, customization)
 	local globalCharacterCount = 0 -- In case no sorting is enabled.
 	
 	for lineIndex, line in lines do
+		local words = line[1]
 		local lineWidth = line[2]
+		local wordGap = 0
 		local x = nil
-		if xAlignment == "Center" then
+		if xAlignment == "Left" then
+			x = 0
+		elseif xAlignment == "Center" then
 			x = math.round((frameWidth - lineWidth)/2)
 		elseif xAlignment == "Right" then
 			x = frameWidth - lineWidth
 		else
-			-- Left alignment.
-			x = 0
+			-- Justified alignment.
+			if lineIndex ~= #lines and #words > 1 then
+				wordGap = (frameWidth - lineWidth)/(#words - 1)
+			end
 		end
 		
 		-- Line sorting.
@@ -527,7 +534,7 @@ local function create(frame, text, customization)
 		end
 		
 		-- Create words.
-		for wordIndex, word in line[1] do
+		for wordIndex, word in words do
 			local wordContainer = lineContainer
 			
 			-- Word sorting.
@@ -559,12 +566,12 @@ local function create(frame, text, customization)
 				-- Parent it.
 				element.Parent = wordContainer
 				
-				-- Increment x position for next character.
+				-- Add space before the next character.
 				x += width
 			end
 			
-			-- Add space (space character) before the next word.
-			x += spaceWidth
+			-- Add space before the next word.
+			x += spaceWidth + wordGap
 		end
 		
 		-- Add space (line height) before the next line.
@@ -677,7 +684,7 @@ module.Create = function(frame, text, customization)
 	-- Argument errors.
 	if not text then error("No text received.") end
 	if text == "" then error("Use 'frame:ClearAllChildren()' instead, if you want to clear the text.") end
-	if typeof(frame) ~= "Instance" or not frame:IsA("Frame") then error("No frame received.") end
+	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame received.") end
 	
 	-- Handle customization.
 	if frameCustomizations[frame] then
