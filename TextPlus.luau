@@ -21,6 +21,8 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
+v1.5.0
+
 A lightweight, open-source text rendering module for Roblox,
 featuring custom fonts and fine-control over all characters.
 
@@ -29,7 +31,7 @@ GitHub:
 https://github.com/AlexanderLindholt/TextPlus
 
 Devforum:
-https://devforum.roblox.com/t/text%EF%BD%9Ccustom-fonts-fine-control/3521684
+https://devforum.roblox.com/t/3521684
 
 
 --------------------------------------------------------------------------------
@@ -107,7 +109,8 @@ local xAlignments = {
 local yAlignments = {
 	Top = true,
 	Center = true,
-	Bottom = true
+	Bottom = true,
+	Justified = true
 }
 
 -- Frame data tables.
@@ -120,16 +123,19 @@ local textBoundsParams = Instance.new("GetTextBoundsParams")
 textBoundsParams.Size = 100 -- Size limit for Roblox built-in font rendering.
 local characterWidthCache = {}
 
+-- Create a raw custom fonts table.
+local rawCustomFonts = {}
+
 -- Verify and preload custom fonts if any.
 if next(customFonts) then
 	local player = Players.LocalPlayer
 	local screenGui = nil
 	local loading = nil
 	local load = nil
-	if player then -- If client.
+	if player then -- If running on client.
 		screenGui = Instance.new("ScreenGui")
 		screenGui.Parent = player.PlayerGui
-
+		
 		loading = 0
 		load = function(image) -- For preloading the font image assets.
 			local label = Instance.new("ImageLabel")
@@ -152,103 +158,96 @@ if next(customFonts) then
 			end))
 		end
 	end
-	local function charactersValid(characters) -- Function to verify the format of the characters in a font.
-		for key, value in pairs(characters) do
+	local function handleCharacters(characters, size)
+		local invertedFontSize = 1/size -- To avoid expensive division.
+		
+		for key, value in characters do
+			-- Verify format.
 			if type(key) ~= "string" then return end
+			if #key ~= 1 then return end
 			if type(value) ~= "table" then return end
-			if typeof(value[1]) ~= "Vector2" then return end
-			if typeof(value[2]) ~= "Vector2" then return end
+			if type(value[1]) ~= "number" then return end
+			if type(value[2]) ~= "number" then return end
 			if typeof(value[3]) ~= "Vector2" then return end
 			if type(value[4]) ~= "number" then return end
+			if type(value[5]) ~= "number" then return end
+			if type(value[6]) ~= "number" then return end
+			
+			-- Precalculate normalized offset and x advance.
+			value[4] *= invertedFontSize
+			value[5] *= invertedFontSize
+			value[6] *= invertedFontSize
 		end
+		
 		return true
 	end
-	local validWeights = {
-		Thin = true,
-		ExtraLight = true,
-		Light = true,
-		Regular = true,
-		Medium = true,
-		SemiBold = true,
-		Bold = true,
-		ExtraBold = true,
-		Heavy = true
-	}
-	local validStyles = {
-		Normal = true,
-		Italic = true
-	}
-	for fontName, font in customFonts do
-		-- Font.
-		if type(fontName) ~= "string" then
-			warn("A custom font has an invalid name.")
-			customFonts[fontName] = nil
-			continue
-		end
-		if type(font) ~= "table" then
-			warn("Missing table for custom font '"..fontName.."'.")
-			customFonts[fontName] = nil
-			continue
-		end
-		for weightName, weight in pairs(font) do
-			-- Weight.
-			if not validWeights[weightName] then
-				warn("Custom font '"..fontName.."' has an invalid weight.")
-				font[weightName] = nil
-				continue
-			end
-			if type(font) ~= "table" then
-				warn("Missing table for the '"..weightName.."' weight in custom font '"..fontName.."'.")
-				font[weightName] = nil
-				continue
-			end
-			for styleName, style in pairs(weight) do
-				-- Style.
-				if not validStyles[styleName] then
-					warn("The '"..weightName.."' weight for custom font '"..fontName.."' has an invalid style.")
-					weight[styleName] = nil
-					continue
-				end
-				if type(font) ~= "table" then
-					warn("Missing table for the '"..styleName.."' style in the '"..weightName.."' weight for custom font '"..fontName.."'.")
-					weight[styleName] = nil
-					continue
-				end
-				if type(style.Image) ~= "number" then
-					warn("Missing an image id for the '"..styleName.."' style in the '"..weightName.."' weight for custom font '"..fontName.."'.")
-					weight[styleName] = nil
-					continue
-				end
-				if type(style.Size) ~= "number" then
-					warn("Missing a size for the '"..styleName.."' style in the '"..weightName.."' weight for custom font '"..fontName.."'.")
-					weight[styleName] = nil
-					continue
-				end
-				if type(style.Characters) ~= "table" then
-					warn("Missing characters for the '"..styleName.."' style in the '"..weightName.."' weight for custom font '"..fontName.."'.")
-					weight[styleName] = nil
-					continue
-				end
-				if not charactersValid(style.Characters) then
-					warn("Invalid characters for the '"..styleName.."' style in the '"..weightName.."' weight for custom font '"..fontName.."'.")
-					weight[styleName] = nil
-					continue
-				end
+	local function processFonts(parent, parentPath)
+		local remove = {}
+		for key, value in parent do
+			if type(value) ~= "table" then
+				table.insert(remove, key)
+			else
+				local currentPath = parentPath.."."..key
 				
-				-- Passed all checks, so preload it.
-				if player then -- If client.
-					loading += 1
-					load(style.Image)
+				if value.Image or value.Size or value.Characters then
+					-- Verify format.
+					if type(value.Image) ~= "number" then
+						warn("Missing an image id in \""..currentPath.."\".")
+						table.insert(remove, key)
+						continue
+					end
+					if type(value.Size) ~= "number" then
+						warn("Missing a size in \""..currentPath.."\".")
+						table.insert(remove, key)
+						continue
+					end
+					if type(value.Characters) ~= "table" then
+						warn("Missing characters in \""..currentPath.."\".")
+						table.insert(remove, key)
+						continue
+					end
+					if not handleCharacters(value.Characters, value.Size) then
+						warn("Invalid characters in \""..currentPath.."\".")
+						table.insert(remove, key)
+						continue
+					end
+					
+					-- Freeze the font table.
+					table.freeze(value)
+					
+					-- Insert the font into raw fonts table.
+					rawCustomFonts[value] = true
+					
+					-- Preload images.
+					if player then -- If running on client.
+						loading += 1
+						load(value.Image)
+					end
+				else
+					processFonts(value, currentPath)
+					table.freeze(value)
 				end
 			end
+		end
+		for _, key in remove do
+			parent[key] = nil
 		end
 	end
+	processFonts(customFonts, "CustomFonts")
+	table.freeze(customFonts)
 end
 
 -- Types.
-type Customization = {
+export type CustomFont = {
+	Image: number,
 	Size: number,
-	Font: Font,
+	Characters: {
+		[string]: {}
+	}
+}
+export type Customization = {
+	Size: number,
+	Font: Font | CustomFont,
 	Color: Color3,
 	Transparency: number,
 	Rotation: number,
@@ -258,59 +257,71 @@ type Customization = {
 	LineHeight: number,
 	CharacterSpacing: number,
 	XAlignment: "Left" | "Center" | "Right" | "Justified",
-	YAlignment: "Top" | "Center" | "Bottom",
+	YAlignment: "Top" | "Center" | "Bottom" | "Justified",
 	WordSorting: boolean,
 	LineSorting: boolean,
 	Dynamic: boolean
 }
 type Container = Frame | ScrollingFrame | CanvasGroup
-type Module = {
-	Create: (frame: Container, text: string, customization: Customization?) -> (),
-	
-	GetTextBounds: (frame: Container) -> Vector2,
-	GetCharacters: (frame: Container) -> {TextLabel | ImageLabel}
-}
 
 -- Module.
 local module = {}
 
-module.GetTextBounds = function(frame)
+module.CustomFonts = customFonts -- Set quick access to custom fonts.
+
+--[[
+Gets the text bounds of a frame.
+Requires text having been created inside the frame.
+]]--
+module.GetTextBounds = function(frame: Container): Vector2
 	-- Argument errors.
 	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame received.") end
 	
 	-- Get and verify text bounds.
 	local textBounds = frameTextBounds[frame]
-	if not textBounds then error("No text has been created inside this frame.") end
+	if not textBounds then return Vector2.zero end
 	
 	-- Return text bounds.
 	return textBounds
 end
-module.GetCharacters = function(frame)
+--[[
+Gathers all characters from a frame into a table.
+Returns only the characters and no folders.
+Works with any sorting.
+]]--
+module.GetCharacters = function(frame: Container): {TextLabel | ImageLabel}
 	-- Argument errors.
 	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame received.") end
 	
 	-- Gather and return characters.
-	local characters = {}
-	for index = 1, #frame:GetChildren(), 1 do
-		local instance = frame[tostring(index)]
-		if instance:IsA("TextLabel") or instance:IsA("ImageLabel") then
-			table.insert(characters, instance)
-		else
-			-- Line or word folder.
-			for index = 1, #instance:GetChildren(), 1 do
-				local inst = instance[tostring(index)]
-				if inst:IsA("TextLabel") or inst:IsA("ImageLabel") then
-					table.insert(characters, inst)
-				else
-					-- Word folder.
-					for index = 1, #inst:GetChildren(), 1 do
-						table.insert(characters, inst[tostring(index)])
-					end
+	local customization = frameCustomizations[frame]
+	if customization == nil then return end
+	
+	local children = frame:GetChildren()
+	if #children == 0 then return end
+	
+	if customization.LineSorting and customization.WordSorting then
+		local characters = {}
+		for _, lineFolder in children do
+			for _, wordFolder in lineFolder:GetChildren() do
+				for _, character in wordFolder:GetChildren() do
+					table.insert(characters, character)
 				end
 			end
 		end
+		return characters
+	elseif customization.LineSorting or customization.WordSorting then
+		local characters = {}
+		for _, folder in children do
+			-- Line or word folder.
+			for _, character in folder:GetChildren() do
+				table.insert(characters, character)
+			end
+		end
+		return characters
+	else
+		return children
 	end
-	return characters
 end
 
 local function create(frame, text, customization)
@@ -337,20 +348,55 @@ local function create(frame, text, customization)
 	local getCharacterWidth = nil
 	local createCharacter = nil
 	do
-		local customFont = customFonts[font.Family]
-		if customFont == nil then
+		if type(font) == "table" then -- If custom font.
+			-- Setup custom font character functions.
+			local image = "rbxassetid://"..tostring(font.Image)
+			local invertedFontSize = 1/font.Size -- To save on expensive division.
+			local characters = font.Characters
+			--[[
+			Character data:
+			  [1] = number - Size x
+			  [2] = number - Size y
+			  [3] = Vector2 - Image offset
+			  [4] = number - Offset x
+			  [5] = number - Offset y
+			  [6] = number - X advance
+			]]--
+			getCharacterWidth = function(character)
+				return characters[character][6]*size
+			end
+			createCharacter = function(character, width, position)
+				-- Create and stylize.
+				local data = characters[character]
+				local imageLabel = Instance.new("ImageLabel")
+				imageLabel.BackgroundTransparency = 1
+				imageLabel.Image = image
+				imageLabel.ImageColor3 = color
+				imageLabel.ImageTransparency = transparency
+				-- Image cutout.
+				local width = data[1]
+				local height = data[2]
+				imageLabel.ImageRectSize = Vector2.new(width, height)
+				imageLabel.ImageRectOffset = data[3]
+				-- Transformation.
+				imageLabel.Size = UDim2.fromOffset(width*invertedFontSize*size, height*invertedFontSize*size)
+				imageLabel.Position = position + UDim2.fromOffset(data[4]*size, data[5]*size) + localOffset
+				imageLabel.Rotation = rotation
+				-- Return character Instance.new.
+				return imageLabel
+			end
+		else
 			-- Setup Roblox font character functions.
 			getCharacterWidth = function(character)
 				local fontKey = character..font.Family..tostring(font.Weight.Value)..tostring(font.Style.Value)
 				local width = characterWidthCache[fontKey]
 				if not width then
 					textBoundsParams.Text = character
-					textBoundsParams.Font = font
-					width = TextService:GetTextBoundsAsync(textBoundsParams).X
+					width = TextService:GetTextBoundsAsync(textBoundsParams).X*0.01
 					characterWidthCache[fontKey] = width
-					return width*0.01*size
+					return width*size
 				else
-					return width*0.01*size
+					return width*size
 				end
 			end
 			createCharacter = function(character, width, position)
@@ -363,7 +409,7 @@ local function create(frame, text, customization)
 				textLabel.TextTransparency = transparency
 				textLabel.FontFace = font
 				textLabel.TextXAlignment = Enum.TextXAlignment.Left
-				textLabel.TextYAlignment = yAlignment
+				textLabel.TextYAlignment = Enum.TextYAlignment.Top
 				textLabel.Size = UDim2.fromOffset(width, size)
 				textLabel.Rotation = rotation
 				textLabel.Position = position + localOffset
@@ -377,47 +423,6 @@ local function create(frame, text, customization)
 				-- Return character instance.
 				return textLabel
 			end
-		else
-			-- Get and verify the weight and style.
-			customFont = customFont[font.Weight.Name]
-			if customFont == nil then error("Font weight could not be found.") end
-			customFont = customFont[font.Style.Name]
-			if customFont == nil then error("Font style could not be found.") end
-			
-			-- Setup custom font character functions.
-			local image = "rbxassetid://"..tostring(customFont.Image)
-			local invertedFontSize = 1/customFont.Size -- To save on expensive division.
-			local characters = customFont.Characters
-			--[[
-			Character data:
-			  [1] = Vector2 - Size
-			  [2] = Vector2 - Image offset
-			  [3] = Vector2 - Offset
-			  [4] = number - X advance
-			]]--
-			getCharacterWidth = function(character)
-				return characters[character][4]*invertedFontSize*size
-			end
-			createCharacter = function(character, width, position)
-				-- Create and stylize.
-				local data = characters[character]
-				local imageLabel = Instance.new("ImageLabel")
-				imageLabel.BackgroundTransparency = 1
-				imageLabel.Image = image
-				imageLabel.ImageColor3 = color
-				imageLabel.ImageTransparency = transparency
-				-- Image cutout.
-				local characterSize = data[1]
-				imageLabel.ImageRectSize = characterSize
-				imageLabel.ImageRectOffset = data[2]
-				-- Transformation.
-				imageLabel.Size = UDim2.fromOffset(characterSize.X*invertedFontSize*size, characterSize.Y*invertedFontSize*size)
-				local offset = data[3]*invertedFontSize*size
-				imageLabel.Position = position + UDim2.fromOffset(offset.X, offset.Y) + localOffset
-				imageLabel.Rotation = rotation
-				-- Return character instance.
-				return imageLabel
-			end
 		end
 	end
 	
@@ -429,21 +434,23 @@ local function create(frame, text, customization)
 	
 	local spaceWidth = getCharacterWidth(" ")*characterSpacing
 	
-	local linesFromText = text:split("\n")
 	local lines = {}
 	local currentLine = {{}, 0}
 	
-	for _, line in linesFromText do
-		if line == "" then -- Empty lines come from manual line breaks.
+	for _, line in text:split("\n") do
+		if line == "" then -- Empty lines come from consecutive manual line breaks.
 			if #currentLine[1] > 0 then
-				textWidth = math.max(textWidth, currentLine[2])
+				local width = currentLine[2]
+				if width > textWidth then
+					textWidth = width
+				end
 				table.insert(lines, currentLine)
 				currentLine = {{}, 0}
 			end
 			table.insert(lines, {{}, 0})
 		else
 			-- Process each word in the line.
-			for word in line:gmatch("%S+") do
+			for _, word in line:split(" ") do
 				-- Calculate word width.
 				local wordCharacters = {}
 				local wordWidth = 0
@@ -469,7 +476,10 @@ local function create(frame, text, customization)
 				
 				if potentialWidth > frameWidth then
 					if #currentLine[1] > 0 then
-						textWidth = math.max(textWidth, currentLine[2])
+						local width = currentLine[2]
+						if width > textWidth then
+							textWidth = width
+						end
 						table.insert(lines, currentLine)
 						currentLine = {{}, 0}
 					end
@@ -483,7 +493,10 @@ local function create(frame, text, customization)
 			
 			-- Line break.
 			if #currentLine[1] > 0 then
-				textWidth = math.max(textWidth, currentLine[2])
+				local width = currentLine[2]
+				if width > textWidth then
+					textWidth = width
+				end
 				table.insert(lines, currentLine)
 				currentLine = {{}, 0}
 			end
@@ -492,17 +505,22 @@ local function create(frame, text, customization)
 	
 	-- Calculate final information and render.
 	local textHeight = #lines*lineHeight
+	local lineGap = 0
 	local y = nil
 	if yAlignment == "Top" then
 		y = 0
 	elseif yAlignment == "Center" then
 		y = math.round((frameSize.Y - textHeight)/2)
-	else
-		-- Bottom alignment.
+	elseif yAlignment == "Bottom" then
 		y = frameSize.Y - textHeight
+	else
+		-- Justified alignment.
+		if #lines > 1 then
+			lineGap = (frameSize.Y - lineHeight)/(#lines - 1)
+		end
 	end
 	
-	local invertedCharacterSpacing = 1/characterSpacing -- To save on expensive division.
+	local invertedCharacterSpacing = 1/characterSpacing -- To avoid expensive division.
 	
 	local globalWordCount = 0 -- In case only word sorting is enabled.
 	local globalCharacterCount = 0 -- In case no sorting is enabled.
@@ -574,8 +592,8 @@ local function create(frame, text, customization)
 			x += spaceWidth + wordGap
 		end
 		
-		-- Add space (line height) before the next line.
-		y += lineHeight
+		-- Add space before the next line.
+		y += lineHeight + lineGap
 	end
 	
 	-- Save text bounds.
@@ -596,13 +614,37 @@ local function handleCustomization(frame, text, customization)
 		customization.YAlignment = defaultYAlignment
 	else
 		-- Correct customizations.
-		if typeof(customization.Font) ~= "Font" then
-			customization.Font = defaultFont
+		if typeof(customization.Font) == "Font" then
+			textBoundsParams.Font = customization.Font
+			textBoundsParams.Text = " "
+			local _, result = pcall(function()
+				return TextService:GetTextBoundsAsync(textBoundsParams)
+			end)
+			if type(result) == "string" then
+				customization.Font = defaultFont
+				textBoundsParams.Font = defaultFont
+				warn("Invalid font. Switched to default.")
+			end
+		else
+			if type(customization.Font) == "table" then
+				if not rawCustomFonts[customization.Font] then
+					customization.Font = defaultFont
+					textBoundsParams.Font = defaultFont
+					warn("Invalid font. Switched to default.")
+				end
+			else
+				customization.Font = defaultFont
+				textBoundsParams.Font = defaultFont
+				warn("Invalid font. Switched to default.")
+			end
 		end
+		
 		if type(customization.Size) ~= "number" then
 			customization.Size = defaultSize
 		elseif customization.Size < 1 then
 			customization.Size = 1
+		elseif customization.Size > 100 then
+			customization.Size = 100
 		end
 		if type(customization.LineHeight) ~= "number" then
 			customization.LineHeight = defaultLineHeight
@@ -680,7 +722,13 @@ local function handleCustomization(frame, text, customization)
 		customization.Dynamic = nil
 	end
 end
-module.Create = function(frame, text, customization)
+--[[
+Creates text inside of a specified frame.
+If text is already present, it will overwrite text and merge customizations.
+
+<strong>frame</strong>: The container and bounding box.
+]]--
+module.Create = function(frame: Container, text: string, customization: Customization?)
 	-- Argument errors.
 	if not text then error("No text received.") end
 	if text == "" then error("Use 'frame:ClearAllChildren()' instead, if you want to clear the text.") end
@@ -692,7 +740,7 @@ module.Create = function(frame, text, customization)
 			-- Merge customizations.
 			local newCustomization = customization
 			customization = frameCustomizations[frame]
-			for key, value in pairs(newCustomization) do
+			for key, value in newCustomization do
 				if customizationOptions[key] then
 					if value == false then
 						customization[key] = nil
@@ -714,7 +762,7 @@ module.Create = function(frame, text, customization)
 			customization = {}
 		end
 		-- Remove invalid customizations.
-		for key in pairs(customization) do
+		for key in customization do
 			if not customizationOptions[key] then
 				customization[key] = nil
 				warn('No customization option called "'..key..'".')
@@ -731,4 +779,4 @@ module.Create = function(frame, text, customization)
 	create(frame, text, customization)
 end
 
-return table.freeze(module) :: Module
+return table.freeze(module)
