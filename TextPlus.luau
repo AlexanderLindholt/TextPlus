@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.6.0
+v1.6.1
 
 A lightweight, open-source text rendering module for Roblox,
 featuring custom fonts and fine-control over all characters.
@@ -350,8 +350,10 @@ module.GetCharacters = function(frame: Container): {TextLabel | ImageLabel}
 end
 
 local function calculateAbsoluteSize(instance)
-	local scaleX, scaleY = 1, 1
-	local offsetX, offsetY = 0, 0
+	local scaleX = 1
+	local scaleY = 1
+	local offsetX = 0
+	local offsetY = 0
 	
 	local rootSizeX = nil
 	local rootSizeY = nil
@@ -658,14 +660,17 @@ local function create(frame, text, customization, frameSize)
 			end
 			table.insert(lines, {{}, 0})
 		else
+			-- Cache line words table.
+			local currentLineWords = currentLine[1]
+			
 			-- Process each word in the line.
 			for _, word in line:split(" ") do
 				-- Calculate word width.
 				local wordCharacters = {}
 				local wordWidth = 0
 				if word == "" then -- Empty words come from consecutive spaces.
-					wordWidth = spaceWidth
-					wordCharacters = {{" ", spaceWidth}}
+					currentLine[2] += spaceWidth
+					table.insert(currentLineWords, {wordCharacters, wordWidth})
 				else
 					for index = 1, #word, 1 do
 						local character = word:sub(index, index)
@@ -673,35 +678,35 @@ local function create(frame, text, customization, frameSize)
 						table.insert(wordCharacters, {character, characterWidth})
 						wordWidth += characterWidth
 					end
-				end
-				
-				-- Line wrapping.
-				local potentialWidth = nil
-				if #currentLine[1] > 0 then
-					potentialWidth = currentLine[2] + spaceWidth + wordWidth
-				else
-					potentialWidth = currentLine[2] + wordWidth
-				end
-				
-				if potentialWidth > frameWidth then
-					if #currentLine[1] > 0 then
-						local width = currentLine[2]
-						if width > textWidth then
-							textWidth = width
-						end
-						table.insert(lines, currentLine)
-						currentLine = {{}, 0}
+					
+					-- Line wrapping.
+					local potentialWidth = nil
+					if #currentLineWords > 0 then
+						potentialWidth = currentLine[2] + spaceWidth + wordWidth
+					else
+						potentialWidth = currentLine[2] + wordWidth
 					end
-					currentLine[2] = wordWidth
-					table.insert(currentLine[1], {wordCharacters, wordWidth})
-				else
-					currentLine[2] = potentialWidth
-					table.insert(currentLine[1], {wordCharacters, wordWidth})
+					
+					if potentialWidth > frameWidth then
+						if #currentLineWords > 0 then
+							local width = currentLine[2]
+							if width > textWidth then
+								textWidth = width
+							end
+							table.insert(lines, currentLine)
+							currentLine = {{}, 0}
+						end
+						currentLine[2] = wordWidth
+						table.insert(currentLineWords, {wordCharacters, wordWidth})
+					else
+						currentLine[2] = potentialWidth
+						table.insert(currentLineWords, {wordCharacters, wordWidth})
+					end
 				end
 			end
 			
 			-- Line break.
-			if #currentLine[1] > 0 then
+			if #currentLineWords > 0 then
 				local width = currentLine[2]
 				if width > textWidth then
 					textWidth = width
@@ -727,6 +732,7 @@ local function create(frame, text, customization, frameSize)
 		y = frameSize.Y - textHeight
 	else
 		-- Justified alignment.
+		y = 0
 		if #lines > 1 then
 			local frameHeight = frameSize.Y
 			local linesAmount = #lines - 1
@@ -759,6 +765,7 @@ local function create(frame, text, customization, frameSize)
 			x = frameWidth - lineWidth
 		else
 			-- Justified alignment.
+			x = 0
 			if lineIndex ~= #lines and #words > 1 then
 				wordGap = (frameWidth - lineWidth)/(#words - 1)
 			end
@@ -947,8 +954,10 @@ local function handleCustomization(frame, text, customization)
 					-- Calculate absolute size, and connect to size changed for ancestors.
 					local instance = frame
 					
-					local scaleX, scaleY = 1, 1
-					local offsetX, offsetY = 0, 0
+					local scaleX = 1
+					local scaleY = 1
+					local offsetX = 0
+					local offsetY = 0
 					
 					local rootSizeX = nil
 					local rootSizeY = nil
