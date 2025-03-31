@@ -30,8 +30,6 @@ What it really does:
 - Clear error feedback.
 - Typing & documentation.
 
-And it's light as a feather! 🪶
-
 <br>
 <br>
 
