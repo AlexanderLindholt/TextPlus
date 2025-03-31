@@ -2,7 +2,7 @@
 
 <img src="./Logo.png"></img>
 
-A lightweight, open-source text rendering module for Roblox,<br>
+An efficient, open-source text rendering module for Roblox,<br>
 featuring custom fonts and fine-control over all characters.
 
 [<img src="https://raw.githubusercontent.com/AlexanderLindholt/LinkButtons/refs/heads/main/Static/Module.png"></img>](https://create.roblox.com/store/asset/138658986432597) ​ [<img src="https://raw.githubusercontent.com/AlexanderLindholt/LinkButtons/refs/heads/main/Static/Devforum.png"></img>](https://devforum.roblox.com/t/3521684)
