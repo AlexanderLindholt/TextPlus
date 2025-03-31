@@ -35,4 +35,4 @@ And it's light as a feather! 🪶
 <br>
 <br>
 
-# Showcases, in-depth tutorials, and more at the devforum post!
+# Showcases, in-depth tutorials, and more at the DevForum post!
