@@ -3,7 +3,7 @@
 <img src="./Logo.png"></img>
 
 An efficient, robust, open-source text rendering module for<br>
-Roblox, featuring custom fonts, fine-control, and more.
+Roblox, featuring custom fonts and advanced text control.
 
 [<img src="https://raw.githubusercontent.com/AlexanderLindholt/LinkButtons/refs/heads/main/Static/Module.png"></img>](https://create.roblox.com/store/asset/138658986432597) ​ [<img src="https://raw.githubusercontent.com/AlexanderLindholt/LinkButtons/refs/heads/main/Static/Devforum.png"></img>](https://devforum.roblox.com/t/3521684)
 </div>
