@@ -2,8 +2,8 @@
 
 <img src="./Logo.png"></img>
 
-An efficient, open-source text rendering module for Roblox,<br>
-featuring custom fonts and fine-control over all characters.
+An efficient, robust, open-source text rendering module for<br>
+Roblox, featuring custom fonts, fine-control, and more.
 
 [<img src="https://raw.githubusercontent.com/AlexanderLindholt/LinkButtons/refs/heads/main/Static/Module.png"></img>](https://create.roblox.com/store/asset/138658986432597) ​ [<img src="https://raw.githubusercontent.com/AlexanderLindholt/LinkButtons/refs/heads/main/Static/Devforum.png"></img>](https://devforum.roblox.com/t/3521684)
 </div>
@@ -18,19 +18,21 @@ Roblox developers suffer from a wide range of limitations.
 developers to unleash their creativity with text.**
 
 What it really does:
-- **Custom fonts:** You can use `.ttf` and `.otf` files, either custom fonts or fonts you find online.
-- **Fine-control**: Transform and style any individual character, word or line. Useful for dialogues.
+- **Custom fonts:** Use any font file, whether completely custom or one found online.
+- **Advanced control**:
+  - Easily transform and style any individual character, word or line.
+  - Utilize awesome text styling like 'justified' alignments and spacing controls.
 <br>
 <br>
 
-# ⚡ Efficient, typed, robust.
-- It's blazingly fast.
-- It’s fully typed and documented.
-- It catches nearly all mistakes, providing detailed error messages.
+# ⚡ Efficient, robust, intuitive.
+- Blazingly fast speeds.
+- Clear error feedback.
+- Typing & documentation.
 
 And it's light as a feather! 🪶
 
 <br>
 <br>
 
-# Showcases, in-depth tutorials, and more, all at the devforum post!
+# Showcases, in-depth tutorials, and more at the devforum post!
