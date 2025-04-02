@@ -21,10 +21,10 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.6.1
+v1.7.0
 
-A lightweight, open-source text rendering module for Roblox,
-featuring custom fonts and fine-control over all characters.
+An efficient, robust, open-source text rendering module for
+Roblox, featuring custom fonts and advanced text control.
 
 
 GitHub:
@@ -67,42 +67,57 @@ local Players = game:GetService("Players")
 local customFonts = require(script.CustomFonts)
 
 -- Defaults.
+local defaultFont = Font.new("rbxasset://fonts/families/SourceSansPro.json")
 local defaultSize = 14
 local defaultColor = Color3.fromRGB(0, 0, 0)
 local defaultTransparency = 0
 local defaultRotation = 0
 local defaultOffset = Vector2.zero
+
 local defaultStrokeSize = 1
 local defaultStrokeColor = Color3.fromRGB(0, 0, 0)
+
 local defaultShadowOffset = Vector2.new(0, 4)
 local defaultShadowColor = Color3.fromRGB(50, 50, 50)
-local defaultFont = Font.new("rbxasset://fonts/families/SourceSansPro.json")
+
 local defaultLineHeight = 1
 local defaultCharacterSpacing = 1
+
 local defaultXAlignment = "Left"
 local defaultYAlignment = "Top"
-local defaultWordSorting = false
-local defaultLineSorting = false
 
 -- Lists for validity checks.
 local customizationOptions = {
-	Size = true,
 	Font = true,
+	Size = true,
 	Color = true,
 	Transparency = true,
 	Rotation = true,
 	Offset = true,
+	
 	StrokeSize = true,
 	StrokeColor = true,
+	
 	ShadowOffset = true,
 	ShadowColor = true,
+	
 	LineHeight = true,
 	CharacterSpacing = true,
+	
+	Truncate = true,
+	
 	XAlignment = true,
 	YAlignment = true,
+	
 	WordSorting = true,
 	LineSorting = true,
+	
 	Dynamic = true
+}
+
+local truncateTypes = {
+	Clear = true,
+	Cut = true
 }
 
 local xAlignments = {
@@ -119,9 +134,11 @@ local yAlignments = {
 }
 
 -- Frame data tables.
-local frameCustomizations = setmetatable({}, {__mode = "k"})
-local frameTextBounds = setmetatable({}, {__mode = "k"})
-local frameDynamicConnections = setmetatable({}, {__mode = "k"}) -- For dynamic feature.
+local frameText = {}
+local frameCustomizations = {}
+local frameTextBounds = {}
+local frameDynamicConnections = {}
+local frameSizes = {}
 
 -- Built-in font rendering stuff.
 local textBoundsParams = Instance.new("GetTextBoundsParams")
@@ -256,22 +273,30 @@ export type CustomFont = {
 	}
 }
 export type Customization = {
-	Size: number,
 	Font: Font | CustomFont,
+	Size: number,
 	Color: Color3,
 	Transparency: number,
 	Rotation: number,
 	Offset: UDim2,
+	
 	StrokeSize: number,
 	StrokeColor: Color3,
+	
 	ShadowOffset: number,
 	ShadowColor: number,
+	
 	LineHeight: number,
 	CharacterSpacing: number,
+	
+	Truncate: "Clear" | "Cut",
+	
 	XAlignment: "Left" | "Center" | "Right" | "Justified",
 	YAlignment: "Top" | "Center" | "Bottom" | "Justified",
+
 	WordSorting: boolean,
 	LineSorting: boolean,
+	
 	Dynamic: boolean
 }
 type Container = Frame | ScrollingFrame | CanvasGroup
@@ -281,6 +306,26 @@ local module = {}
 
 module.CustomFonts = customFonts -- Set quick access to custom fonts.
 
+--[[
+Gets the raw text string for a frame.
+]]--
+module.GetText = function(frame: Container): Customization
+	-- Argument errors.
+	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame received.") end
+	
+	-- Get and return text.
+	return frameText[frame]
+end
+--[[
+Gets the customization for a frame.
+]]--
+module.GetCustomization = function(frame: Container): Customization
+	-- Argument errors.
+	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame received.") end
+	
+	-- Get and return customization.
+	return frameCustomizations[frame]
+end
 --[[
 Gets the text bounds of a frame.
 Returns <code>Vector2.zero</code> if not found.
@@ -293,17 +338,6 @@ module.GetTextBounds = function(frame: Container): Vector2
 	local textBounds = frameTextBounds[frame]
 	if not textBounds then return Vector2.zero end
 	return textBounds
-end
---[[
-Gets the customization for a frame.
-]]--
-module.GetCustomization = function(frame: Container): Customization
-	-- Argument errors.
-	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame received.") end
-	
-	-- Get and return customization.
-	local customization = frameCustomizations[frame]
-	return customization
 end
 --[[
 Gathers all characters from a frame into a table.
@@ -319,7 +353,7 @@ module.GetCharacters = function(frame: Container): {TextLabel | ImageLabel}
 	
 	-- Get and verify customization.
 	local customization = frameCustomizations[frame]
-	if customization == nil then return {} end
+	if not customization then return {} end -- Return a blank table if frame doesn't have text inside.
 	
 	-- Gather and return characters.
 	if customization.LineSorting and customization.WordSorting then
@@ -359,6 +393,7 @@ local function calculateAbsoluteSize(instance)
 	local rootSizeY = nil
 	
 	while true do
+		-- Cache size values.
 		local size = instance.Size
 		local x = size.X
 		local y = size.Y
@@ -428,7 +463,7 @@ local function calculateAbsoluteSize(instance)
 		rootSizeY*scaleY + offsetY
 	)
 end
-local function create(frame, text, customization, frameSize)
+local function render(frame, text, customization, frameSize)
 	-- Clear previous characters and any content, that may interfere.
 	frame:ClearAllChildren()
 	
@@ -439,14 +474,21 @@ local function create(frame, text, customization, frameSize)
 	local transparency = customization.Transparency
 	local rotation = customization.Rotation
 	local offset = customization.Offset offset = UDim2.fromOffset(offset.X, offset.Y) -- Convert Vector2 to UDim2.
+	
 	local strokeSize = customization.StrokeSize
 	local strokeColor = customization.StrokeColor
+	
 	local shadowOffset = customization.ShadowOffset
 	local shadowColor = customization.ShadowColor
+	
 	local lineHeight = customization.LineHeight*size -- Multiply by size to get it from scale to pixels.
 	local characterSpacing = customization.CharacterSpacing
+	
+	local truncate = customization.Truncate
+	
 	local xAlignment = customization.XAlignment
 	local yAlignment = customization.YAlignment
+	
 	local wordSorting = customization.WordSorting
 	local lineSorting = customization.LineSorting
 	
@@ -454,7 +496,7 @@ local function create(frame, text, customization, frameSize)
 	local getCharacterWidth = nil
 	local createCharacter = nil
 	do
-		if type(font) == "table" then -- If custom font.
+		if type(font) == "table" then
 			-- Setup custom font character functions.
 			local image = "rbxassetid://"..tostring(font.Image)
 			local invertedFontSize = 1/font.Size -- To save on expensive division.
@@ -469,11 +511,11 @@ local function create(frame, text, customization, frameSize)
 			  [6] = number - X advance
 			]]--
 			getCharacterWidth = function(character)
-				return characters[character][6]*size
+				return characters[character][6]*size*characterSpacing
 			end
 			if shadowOffset then
 				shadowOffset = UDim2.fromOffset(shadowOffset.X, shadowOffset.Y) -- Convert Vector2 to UDim2.
-				createCharacter = function(character, width, position)
+				createCharacter = function(character, position)
 					-- Calculate information.
 					local data = characters[character]
 					local width = data[1]
@@ -509,7 +551,7 @@ local function create(frame, text, customization, frameSize)
 						main.ImageRectOffset = imageOffset
 						-- Transformation.
 						main.Size = UDim2.fromScale(1, 1)
-						main.Position = -shadowOffset
+						main.Position = -shadowOffset -- Counteract the shadow offset.
 						-- Name and parent.
 						main.Name = "Main"
 						main.Parent = shadow
@@ -518,7 +560,7 @@ local function create(frame, text, customization, frameSize)
 					return shadow
 				end
 			else
-				createCharacter = function(character, width, position)
+				createCharacter = function(character, position)
 					-- Create and stylize.
 					local data = characters[character]
 					local imageLabel = Instance.new("ImageLabel")
@@ -541,6 +583,7 @@ local function create(frame, text, customization, frameSize)
 			end
 		else
 			-- Setup Roblox font character functions.
+			local invertedCharacterSpacing = 1/characterSpacing -- To avoid expensive division.
 			getCharacterWidth = function(character)
 				local fontKey = character..font.Family..tostring(font.Weight.Value)..tostring(font.Style.Value)
 				local width = characterWidthCache[fontKey]
@@ -548,14 +591,14 @@ local function create(frame, text, customization, frameSize)
 					textBoundsParams.Text = character
 					width = TextService:GetTextBoundsAsync(textBoundsParams).X*0.01
 					characterWidthCache[fontKey] = width
-					return width*size
+					return width*size*characterSpacing
 				else
-					return width*size
+					return width*size*characterSpacing
 				end
 			end
 			if shadowOffset then
 				shadowOffset = UDim2.fromOffset(shadowOffset.X, shadowOffset.Y) -- Convert Vector2 to UDim2.
-				createCharacter = function(character, width, position)
+				createCharacter = function(character, position, width)
 					local shadow = Instance.new("TextLabel")
 					do
 						-- Stylize.
@@ -568,7 +611,7 @@ local function create(frame, text, customization, frameSize)
 						shadow.TextXAlignment = Enum.TextXAlignment.Left
 						shadow.TextYAlignment = Enum.TextYAlignment.Top
 						-- Transformation.
-						shadow.Size = UDim2.fromOffset(width, size)
+						shadow.Size = UDim2.fromOffset(width*invertedCharacterSpacing, size)
 						shadow.Rotation = rotation
 						shadow.Position = position + offset + shadowOffset
 					end
@@ -585,12 +628,12 @@ local function create(frame, text, customization, frameSize)
 						main.TextYAlignment = Enum.TextYAlignment.Top
 						-- Transformation.
 						main.Size = UDim2.fromScale(1, 1)
-						main.Position = -shadowOffset
+						main.Position = -shadowOffset -- Counteract the shadow offset.
 						-- Name and parent.
 						main.Name = "Main"
 						main.Parent = shadow
 					end
-					-- Apply stroke if any is given.
+					-- Apply stroke if customization is given.
 					if strokeSize then
 						do
 							local uiStroke = Instance.new("UIStroke")
@@ -609,7 +652,7 @@ local function create(frame, text, customization, frameSize)
 					return shadow
 				end
 			else
-				createCharacter = function(character, width, position)
+				createCharacter = function(character, position, width)
 					-- Create and stylize.
 					local textLabel = Instance.new("TextLabel")
 					textLabel.BackgroundTransparency = 1
@@ -621,10 +664,10 @@ local function create(frame, text, customization, frameSize)
 					textLabel.TextXAlignment = Enum.TextXAlignment.Left
 					textLabel.TextYAlignment = Enum.TextYAlignment.Top
 					-- Transformation.
-					textLabel.Size = UDim2.fromOffset(width, size)
+					textLabel.Size = UDim2.fromOffset(width*invertedCharacterSpacing, size)
 					textLabel.Rotation = rotation
 					textLabel.Position = position + offset
-					-- Apply stroke if any is given.
+					-- Apply stroke if customization is given.
 					if strokeSize then
 						local uiStroke = Instance.new("UIStroke")
 						uiStroke.Thickness = strokeSize
@@ -642,77 +685,136 @@ local function create(frame, text, customization, frameSize)
 	local textWidth = 0
 	
 	local frameWidth = frameSize.X
+	local frameHeight = frameSize.Y
 	
-	local spaceWidth = getCharacterWidth(" ")*characterSpacing
+	local spaceWidth = getCharacterWidth(" ")
 	
 	local lines = {}
-	local currentLine = {{}, 0}
+	local currentLineWords = {}
+	local currentLineWidth = 0
 	
-	for _, line in text:split("\n") do
+	local truncated = false
+	
+	local rawLines = text:split("\n")
+	
+	for _, line in rawLines do
+		if truncated then break end
+		
 		if line == "" then -- Empty lines come from consecutive manual line breaks.
-			if #currentLine[1] > 0 then
-				local width = currentLine[2]
-				if width > textWidth then
-					textWidth = width
-				end
-				table.insert(lines, currentLine)
-				currentLine = {{}, 0}
+			if #currentLineWords > 0 then
+				-- Update text width.
+				local width = currentLineWidth
+				if width > textWidth then textWidth = width end
+				
+				-- Insert current line.
+				table.insert(lines, {currentLineWords, currentLineWidth})
+				-- Create new line.
+				currentLineWords = {}
+				currentLineWidth = 0
 			end
 			table.insert(lines, {{}, 0})
 		else
-			-- Cache line words table.
-			local currentLineWords = currentLine[1]
-			
 			-- Process each word in the line.
-			for _, word in line:split(" ") do
-				-- Calculate word width.
+			local words = line:split(" ")
+			local wordWidth = 0
+			for wordIndex, word in words do
+				if truncated then break end
+				
 				local wordCharacters = {}
-				local wordWidth = 0
 				if word == "" then -- Empty words come from consecutive spaces.
-					currentLine[2] += spaceWidth
-					table.insert(currentLineWords, {wordCharacters, wordWidth})
+					currentLineWidth += spaceWidth
+					table.insert(currentLineWords, wordCharacters)
 				else
+					-- Insert characters and calculate word width.
 					for index = 1, #word, 1 do
 						local character = word:sub(index, index)
-						local characterWidth = getCharacterWidth(character)*characterSpacing
+						local characterWidth = getCharacterWidth(character)
 						table.insert(wordCharacters, {character, characterWidth})
 						wordWidth += characterWidth
 					end
 					
-					-- Line wrapping.
-					local potentialWidth = nil
-					if #currentLineWords > 0 then
-						potentialWidth = currentLine[2] + spaceWidth + wordWidth
-					else
-						potentialWidth = currentLine[2] + wordWidth
-					end
+					local potentialLineWidth = currentLineWidth + wordWidth
 					
-					if potentialWidth > frameWidth then
-						if #currentLineWords > 0 then
-							local width = currentLine[2]
-							if width > textWidth then
-								textWidth = width
+					if potentialLineWidth > frameWidth then
+						-- Truncate if necessary.
+						if truncate and #lines*lineHeight + size > frameHeight then
+							truncated = true
+							
+							local dotWidth = getCharacterWidth(".")
+							local dot = {".", dotWidth}
+							
+							if truncate == "Clear" then
+								-- Find last word.
+								local lastLineWords = lines[#lines][1]
+								local lastWord = lastLineWords[#lastLineWords]
+								-- Clear word.
+								table.clear(lastWord)
+								-- Add ellipsis.
+								table.insert(lastWord, dot)
+								table.insert(lastWord, dot)
+								table.insert(lastWord, dot)
+							else -- "Cut" truncation.
+								-- Find last word.
+								local lastLine = lines[#lines]
+								local lastLineWords = lastLine[1]
+								local lastWord = lastLineWords[#lastLineWords]
+								-- Cut off word.
+								local ellipsisWidth = dotWidth*3
+								local lastLineWidth = lastLine[2]
+								if frameWidth - lastLineWidth < ellipsisWidth then
+									for index = #lastWord, 1, -1 do
+										lastLineWidth -= lastWord[index][2]
+										lastWord[index] = nil
+										if frameWidth - lastLineWidth >= ellipsisWidth then break end
+									end
+									lastLine[2] = lastLineWidth
+								end
+								-- Add ellipsis.
+								table.insert(lastWord, dot)
+								table.insert(lastWord, dot)
+								table.insert(lastWord, dot)
 							end
-							table.insert(lines, currentLine)
-							currentLine = {{}, 0}
+						else
+							-- Line wrapping.
+							if wordIndex == 1 then
+								currentLineWidth = potentialLineWidth
+								table.insert(currentLineWords, wordCharacters)
+							else
+								-- Update text width.
+								local width = currentLineWidth
+								if width > textWidth then textWidth = width end
+								
+								-- Insert current line.
+								table.insert(lines, {currentLineWords, currentLineWidth})
+								-- Create new line.
+								currentLineWords = {wordCharacters}
+								currentLineWidth = wordWidth
+								
+								-- Update potential width.
+								potentialLineWidth = wordWidth
+							end
 						end
-						currentLine[2] = wordWidth
-						table.insert(currentLineWords, {wordCharacters, wordWidth})
 					else
-						currentLine[2] = potentialWidth
-						table.insert(currentLineWords, {wordCharacters, wordWidth})
+						currentLineWidth = potentialLineWidth
+						table.insert(currentLineWords, wordCharacters)
 					end
 				end
+				
+				-- Initialize the next word's with at a space's width.
+				wordWidth = spaceWidth
 			end
 			
 			-- Line break.
-			if #currentLineWords > 0 then
-				local width = currentLine[2]
-				if width > textWidth then
-					textWidth = width
-				end
-				table.insert(lines, currentLine)
-				currentLine = {{}, 0}
+			if #currentLineWords > 0 and not truncated then
+				-- Update text width.
+				local width = currentLineWidth
+				if width > textWidth then textWidth = width end
+				
+				-- Insert current line.
+				table.insert(lines, {currentLineWords, currentLineWidth})
+				-- Create new line.
+				currentLineWords = {}
+				currentLineWidth = 0
 			end
 		end
 	end
@@ -726,15 +828,15 @@ local function create(frame, text, customization, frameSize)
 		y = 0
 	elseif yAlignment == "Center" then
 		textHeight = (#lines - 1)*lineHeight + size
-		y = math.round((frameSize.Y - textHeight)/2)
+		y = math.round((frameHeight - textHeight)/2)
 	elseif yAlignment == "Bottom" then
 		textHeight = (#lines - 1)*lineHeight + size
-		y = frameSize.Y - textHeight
+		y = frameHeight - textHeight
 	else
 		-- Justified alignment.
 		y = 0
 		if #lines > 1 then
-			local frameHeight = frameSize.Y
+			local frameHeight = frameHeight
 			local linesAmount = #lines - 1
 			lineGap = (frameHeight - (linesAmount*lineHeight + size))/linesAmount
 			textHeight = frameHeight
@@ -746,8 +848,6 @@ local function create(frame, text, customization, frameSize)
 	if xAlignment == "Justified" then
 		textWidth = frameWidth
 	end
-	
-	local invertedCharacterSpacing = 1/characterSpacing -- To avoid expensive division.
 	
 	local globalWordCount = 0 -- In case only word sorting is enabled.
 	local globalCharacterCount = 0 -- In case no sorting is enabled.
@@ -798,10 +898,10 @@ local function create(frame, text, customization, frameSize)
 			end
 			
 			-- Create characters.
-			for characterIndex, character in word[1] do
+			for characterIndex, character in word do
 				local width = character[2]
 				
-				local element = createCharacter(character[1], width*invertedCharacterSpacing, UDim2.fromOffset(x, y))
+				local element = createCharacter(character[1], UDim2.fromOffset(x, y), width)
 				-- Numerical naming.
 				if not lineSorting and not wordSorting then
 					globalCharacterCount += 1
@@ -827,7 +927,171 @@ local function create(frame, text, customization, frameSize)
 	-- Save text bounds.
 	frameTextBounds[frame] = Vector2.new(textWidth, textHeight)
 end
-local function handleCustomization(frame, text, customization)
+local function handleDynamic(frame, text, customization)
+	if customization.Dynamic == true then
+		if frameDynamicConnections[frame] then
+			-- Cache information.
+			frameText[frame] = text
+			frameCustomizations[frame] = customization
+			-- Render.
+			render(frame, text, customization, frameSizes[frame])
+		else
+			-- Cache information.
+			frameText[frame] = text
+			frameCustomizations[frame] = customization
+			
+			-- Setup dynamic stuff.
+			local ancestorConnections = {}
+			local function update()
+				local size = calculateAbsoluteSize(frame)
+				frameSizes[frame] = size
+				render(frame, frameText[frame], frameCustomizations[frame], size)
+			end
+			local function fullUpdate()
+				-- Calculate absolute size, and connect to size changed for ancestors.
+				local instance = frame
+				
+				local scaleX = 1
+				local scaleY = 1
+				local offsetX = 0
+				local offsetY = 0
+				
+				local rootSizeX = nil
+				local rootSizeY = nil
+				
+				while true do
+					-- Cache size values.
+					local size = instance.Size
+					local x = size.X
+					local y = size.Y
+					-- Accumulate offsets using current scale.
+					offsetX = x.Offset*scaleX + offsetX
+					offsetY = y.Offset*scaleY + offsetY
+					-- Update scales.
+					scaleX = x.Scale*scaleX
+					scaleY = y.Scale*scaleY
+					
+					-- Traverse.
+					instance = instance.Parent
+					
+					-- Ensure an instance.
+					if not instance then break end
+					
+					-- Check for root gui instance, and if found, calculate root size.
+					if instance:IsA("ScreenGui") then
+						local camera = workspace.CurrentCamera
+						if not camera then break end
+						
+						local viewportSize = camera.ViewportSize
+						if instance.IgnoreGuiInset then
+							rootSizeX = viewportSize.X
+							rootSizeY = viewportSize.Y
+						else
+							local inset = GuiService:GetGuiInset()
+							rootSizeX = viewportSize.X - inset.X
+							rootSizeY = viewportSize.Y - inset.Y
+						end
+						
+						break
+					elseif instance:IsA("SurfaceGui") then
+						local adornee = instance.Adornee
+						if not adornee then
+							adornee = instance.Parent
+							if not adornee then break end
+						end
+						if not adornee:IsA("BasePart") then break end
+						
+						local face = instance.Face
+						local pixelsPerStud = instance.PixelsPerStud
+						local partSize = adornee.Size
+						
+						if face == Enum.NormalId.Front or face == Enum.NormalId.Back then
+							rootSizeX = partSize.X*pixelsPerStud
+							rootSizeY = partSize.Y*pixelsPerStud
+						elseif face == Enum.NormalId.Left or face == Enum.NormalId.Right then
+							rootSizeX = partSize.Z*pixelsPerStud
+							rootSizeY = partSize.Y*pixelsPerStud
+						else
+							-- Top or bottom face.
+							rootSizeX = partSize.X*pixelsPerStud
+							rootSizeY = partSize.Z*pixelsPerStud
+						end
+						
+						break
+					else
+						-- Verify instance and connect to size changed if gui.
+						if instance:IsA("GuiObject") then
+							table.insert(ancestorConnections, instance:GetPropertyChangedSignal("Size"):Connect(update))
+						elseif not instance:IsA("Folder") then
+							break
+						end
+					end
+				end
+				
+				-- Final calculation and update the text.
+				if rootSizeX then
+					render(frame, frameText[frame], frameCustomizations[frame], Vector2.new(
+						rootSizeX*scaleX + offsetX,
+						rootSizeY*scaleY + offsetY
+					))
+				else
+					render(frame, frameText[frame], frameCustomizations[frame], Vector2.zero)
+				end
+			end
+			fullUpdate()
+			local connections = nil
+			connections = {
+				frame:GetPropertyChangedSignal("Size"):Connect(update),
+				frame.AncestryChanged:Connect(function()
+					for _, connection in connections do
+						connection:Disconnect()
+					end
+					fullUpdate()
+				end),
+				frame.Destroying:Connect(function()
+					connections[1]:Disconnect()
+					connections[2]:Disconnect()
+					connections[3]:Disconnect()
+					for _, connection in connections do
+						connection:Disconnect()
+					end
+					frameDynamicConnections[frame] = nil
+				end),
+				ancestorConnections
+			}
+			frameDynamicConnections[frame] = connections
+		end
+	elseif customization.Dynamic == false then
+		-- Disable dynamic.
+		local connections = frameDynamicConnections[frame]
+		if connections then
+			connections[1]:Disconnect()
+			connections[2]:Disconnect()
+			connections[3]:Disconnect()
+			for _, connection in connections[4] do
+				connection:Disconnect()
+			end
+			frameDynamicConnections[frame] = nil
+			
+			frame:GetPropertyChangedSignal("Size"):Once(function()
+				frameSizes[frame] = nil
+			end)
+		end
+		
+		-- Get rid of the non-true value.
+		customization.Dynamic = nil
+		-- Cache information.
+		frameText[frame] = text
+		frameCustomizations[frame] = customization
+	else
+		-- Get rid of the non-true value.
+		customization.Dynamic = nil
+		-- Cache information.
+		frameText[frame] = text
+		frameCustomizations[frame] = customization
+	end
+end
+local function correctCustomization(frame, text, customization)
 	if not next(customization) then
 		-- Apply defaults.
 		customization.Font = defaultFont
@@ -836,29 +1100,33 @@ local function handleCustomization(frame, text, customization)
 		customization.Transparency = defaultTransparency
 		customization.Rotation = defaultRotation
 		customization.Offset = defaultOffset
+		
 		customization.LineHeight = defaultLineHeight
 		customization.CharacterSpacing = defaultCharacterSpacing
+		
 		customization.XAlignment = defaultXAlignment
 		customization.YAlignment = defaultYAlignment
 	else
 		-- Correct customizations.
-		if typeof(customization.Font) == "Font" then
+		if customization.Font == nil then
+			customization.Font = defaultFont
+			textBoundsParams.Font = defaultFont
+		elseif typeof(customization.Font) == "Font" then
+			-- Roblox font.
 			textBoundsParams.Font = customization.Font
 			textBoundsParams.Text = " "
 			local _, result = pcall(function()
 				return TextService:GetTextBoundsAsync(textBoundsParams)
 			end)
 			if type(result) == "string" then
+				warn("Invalid font. Using default.")
 				customization.Font = defaultFont
 				textBoundsParams.Font = defaultFont
 			end
 		else
-			if type(customization.Font) == "table" then
-				if not rawCustomFonts[customization.Font] then
-					customization.Font = defaultFont
-					textBoundsParams.Font = defaultFont
-				end
-			else
+			-- Custom font.
+			if not rawCustomFonts[customization.Font] then
+				warn("Invalid font. Using default.")
 				customization.Font = defaultFont
 				textBoundsParams.Font = defaultFont
 			end
@@ -930,6 +1198,10 @@ local function handleCustomization(frame, text, customization)
 			end
 		end
 		
+		if not truncateTypes[customization.Truncate] then
+			customization.Truncate = nil
+		end
+		
 		if not xAlignments[customization.XAlignment] then
 			customization.XAlignment = defaultXAlignment
 		end
@@ -941,131 +1213,6 @@ local function handleCustomization(frame, text, customization)
 		end
 		if type(customization.LineSorting) ~= "boolean" or not customization.LineSorting then
 			customization.LineSorting = nil
-		end
-		
-		-- Dynamic feature.
-		if customization.Dynamic == true then
-			if not frameDynamicConnections[frame] then
-				local connections = {}
-				local function update()
-					create(frame, text, customization, calculateAbsoluteSize(frame))
-				end
-				local function fullUpdate()
-					-- Calculate absolute size, and connect to size changed for ancestors.
-					local instance = frame
-					
-					local scaleX = 1
-					local scaleY = 1
-					local offsetX = 0
-					local offsetY = 0
-					
-					local rootSizeX = nil
-					local rootSizeY = nil
-					
-					while true do
-						local size = instance.Size
-						local x = size.X
-						local y = size.Y
-						-- Accumulate offsets using current scale.
-						offsetX = x.Offset*scaleX + offsetX
-						offsetY = y.Offset*scaleY + offsetY
-						-- Update scales.
-						scaleX = x.Scale*scaleX
-						scaleY = y.Scale*scaleY
-						
-						-- Traverse.
-						instance = instance.Parent
-						
-						-- Ensure an instance.
-						if not instance then break end
-						
-						-- Check for root gui instance, and if found, calculate root size.
-						if instance:IsA("ScreenGui") then
-							local camera = workspace.CurrentCamera
-							if not camera then break end
-							
-							local viewportSize = camera.ViewportSize
-							if instance.IgnoreGuiInset then
-								rootSizeX = viewportSize.X
-								rootSizeY = viewportSize.Y
-							else
-								local inset = GuiService:GetGuiInset()
-								rootSizeX = viewportSize.X - inset.X
-								rootSizeY = viewportSize.Y - inset.Y
-							end
-							
-							break
-						elseif instance:IsA("SurfaceGui") then
-							local adornee = instance.Adornee
-							if not adornee then
-								adornee = instance.Parent
-								if not adornee then break end
-							end
-							if not adornee:IsA("BasePart") then break end
-							
-							local face = instance.Face
-							local pixelsPerStud = instance.PixelsPerStud
-							local partSize = adornee.Size
-							
-							if face == Enum.NormalId.Front or face == Enum.NormalId.Back then
-								rootSizeX = partSize.X*pixelsPerStud
-								rootSizeY = partSize.Y*pixelsPerStud
-							elseif face == Enum.NormalId.Left or face == Enum.NormalId.Right then
-								rootSizeX = partSize.Z*pixelsPerStud
-								rootSizeY = partSize.Y*pixelsPerStud
-							else
-								-- Top or bottom face.
-								rootSizeX = partSize.X*pixelsPerStud
-								rootSizeY = partSize.Z*pixelsPerStud
-							end
-							
-							break
-						else
-							-- Verify instance and connect to size changed if gui.
-							if instance:IsA("GuiObject") then
-								table.insert(connections, instance:GetPropertyChangedSignal("Size"):Connect(update))
-							elseif not instance:IsA("Folder") then
-								break
-							end
-						end
-					end
-					
-					-- Final calculation and update the text.
-					if rootSizeX then
-						create(frame, text, customization, Vector2.new(
-							rootSizeX*scaleX + offsetX,
-							rootSizeY*scaleY + offsetY
-						))
-					else
-						create(frame, text, customization, Vector2.zero)
-					end
-				end
-				fullUpdate()
-				frameDynamicConnections[frame] = {
-					frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(update),
-					frame.AncestryChanged:Connect(function()
-						for _, connection in connections do
-							connection:Disconnect()
-						end
-						fullUpdate()
-					end),
-					connections
-				}
-			end
-		elseif customization.Dynamic == false then
-			local connections = frameDynamicConnections[frame]
-			if connections then
-				connections[1]:Disconnect()
-				connections[2]:Disconnect()
-				for _, connection in connections[3] do
-					connection:Disconnect()
-				end
-				frameDynamicConnections[frame] = nil
-			end
-			
-			customization.Dynamic = nil
-		else
-			customization.Dynamic = nil
 		end
 	end
 end
@@ -1094,10 +1241,29 @@ module.Create = function(frame: Container, text: string, customization: Customiz
 					warn("No customization option called '"..key.."'.")
 				end
 			end
-			-- Handle new (merged) customization.
-			handleCustomization(frame, text, customization)
+			-- Correct new (merged) customization.
+			correctCustomization(frame, text, customization)
 		else
 			customization = frameCustomizations[frame]
+		end
+		
+		-- Size stuff and render.
+		local size = frameSizes[frame]
+		if not size then
+			size = calculateAbsoluteSize(frame)
+			frameSizes[frame] = size
+			frame:GetPropertyChangedSignal("Size"):Once(function()
+				frameSizes[frame] = nil
+			end)
+		end
+		if customization.Dynamic == nil then
+			-- Cache information.
+			frameText[frame] = text
+			frameCustomizations[frame] = customization
+			-- Render.
+			render(frame, text, customization, size)
+		else
+			handleDynamic(frame, text, customization)
 		end
 	else
 		-- Ensure the customization is a table.
@@ -1112,15 +1278,28 @@ module.Create = function(frame: Container, text: string, customization: Customiz
 			end
 		end
 		-- Correct invalid customizations.
-		handleCustomization(frame, text, customization)
-	end
-	
-	-- Save customization.
-	frameCustomizations[frame] = customization
-	
-	-- Create the text.
-	if not customization.Dynamic then
-		create(frame, text, customization, calculateAbsoluteSize(frame))
+		correctCustomization(frame, text, customization)
+		
+		-- Connect clean-up to destroy.
+		frame.Destroying:Connect(function()
+			frameText[frame] = nil
+			frameCustomizations[frame] = nil
+			frameTextBounds[frame] = nil
+			frameSizes[frame] = nil
+		end)
+		
+		-- Size stuff and render.
+		local size = calculateAbsoluteSize(frame)
+		frameSizes[frame] = size
+		if customization.Dynamic == nil then
+			-- Cache information.
+			frameText[frame] = text
+			frameCustomizations[frame] = customization
+			-- Render.
+			render(frame, text, customization, size)
+		else
+			handleDynamic(frame, text, customization)
+		end
 	end
 end
 
