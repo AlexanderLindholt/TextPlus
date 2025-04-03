@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.7.0
+v1.8.0
 
 An efficient, robust, open-source text rendering module for
 Roblox, featuring custom fonts and advanced text control.
@@ -66,13 +66,18 @@ local Players = game:GetService("Players")
 
 local customFonts = require(script.CustomFonts)
 
+local camera = workspace.CurrentCamera
+
 -- Defaults.
 local defaultFont = Font.new("rbxasset://fonts/families/SourceSansPro.json")
+
 local defaultSize = 14
+
 local defaultColor = Color3.fromRGB(0, 0, 0)
 local defaultTransparency = 0
-local defaultRotation = 0
+
 local defaultOffset = Vector2.zero
+local defaultRotation = 0
 
 local defaultStrokeSize = 1
 local defaultStrokeColor = Color3.fromRGB(0, 0, 0)
@@ -89,11 +94,15 @@ local defaultYAlignment = "Top"
 -- Lists for validity checks.
 local customizationOptions = {
 	Font = true,
+	
 	Size = true,
+	ScaleSize = true,
+	
 	Color = true,
 	Transparency = true,
-	Rotation = true,
+	
 	Offset = true,
+	Rotation = true,
 	
 	StrokeSize = true,
 	StrokeColor = true,
@@ -113,6 +122,12 @@ local customizationOptions = {
 	LineSorting = true,
 	
 	Dynamic = true
+}
+
+local scaleSizeTypes = {
+	X = true,
+	Y = true,
+	XY = true
 }
 
 local truncateTypes = {
@@ -274,11 +289,15 @@ export type CustomFont = {
 }
 export type Customization = {
 	Font: Font | CustomFont,
+	
 	Size: number,
+	ScaleSize: "X" | "Y" | "XY",
+	
 	Color: Color3,
 	Transparency: number,
-	Rotation: number,
+	
 	Offset: UDim2,
+	Rotation: number,
 	
 	StrokeSize: number,
 	StrokeColor: Color3,
@@ -412,7 +431,6 @@ local function calculateAbsoluteSize(instance)
 		
 		-- Check for root gui instance, and if found, calculate root size.
 		if instance:IsA("ScreenGui") then
-			local camera = workspace.CurrentCamera
 			if not camera then return Vector2.zero end
 			
 			local viewportSize = camera.ViewportSize
@@ -469,11 +487,25 @@ local function render(frame, text, customization, frameSize)
 	
 	-- Customization references.
 	local font = customization.Font
+	
 	local size = customization.Size
+	local scaleSize = customization.ScaleSize
+	if scaleSize then
+		if scaleSize == "X" then
+			size *= camera.ViewportSize.X
+		elseif scaleSize == "Y" then
+			size *= camera.ViewportSize.Y
+		else
+			local viewportSize = camera.ViewportSize
+			size *= (viewportSize.X + viewportSize.Y)/2
+		end
+	end
+	
 	local color = customization.Color
 	local transparency = customization.Transparency
-	local rotation = customization.Rotation
+	
 	local offset = customization.Offset offset = UDim2.fromOffset(offset.X, offset.Y) -- Convert Vector2 to UDim2.
+	local rotation = customization.Rotation
 	
 	local strokeSize = customization.StrokeSize
 	local strokeColor = customization.StrokeColor
@@ -514,6 +546,7 @@ local function render(frame, text, customization, frameSize)
 				return characters[character][6]*size*characterSpacing
 			end
 			if shadowOffset then
+				-- Shadow.
 				shadowOffset = UDim2.fromOffset(shadowOffset.X, shadowOffset.Y) -- Convert Vector2 to UDim2.
 				createCharacter = function(character, position)
 					-- Calculate information.
@@ -560,6 +593,7 @@ local function render(frame, text, customization, frameSize)
 					return shadow
 				end
 			else
+				-- No shadow.
 				createCharacter = function(character, position)
 					-- Create and stylize.
 					local data = characters[character]
@@ -598,6 +632,7 @@ local function render(frame, text, customization, frameSize)
 			end
 			if shadowOffset then
 				shadowOffset = UDim2.fromOffset(shadowOffset.X, shadowOffset.Y) -- Convert Vector2 to UDim2.
+				-- Shadow.
 				createCharacter = function(character, position, width)
 					local shadow = Instance.new("TextLabel")
 					do
@@ -652,6 +687,7 @@ local function render(frame, text, customization, frameSize)
 					return shadow
 				end
 			else
+				-- No shadow.
 				createCharacter = function(character, position, width)
 					-- Create and stylize.
 					local textLabel = Instance.new("TextLabel")
@@ -979,7 +1015,6 @@ local function handleDynamic(frame, text, customization)
 					
 					-- Check for root gui instance, and if found, calculate root size.
 					if instance:IsA("ScreenGui") then
-						local camera = workspace.CurrentCamera
 						if not camera then break end
 						
 						local viewportSize = camera.ViewportSize
@@ -1041,9 +1076,10 @@ local function handleDynamic(frame, text, customization)
 			fullUpdate()
 			local connections = nil
 			connections = {
+				camera:GetPropertyChangedSignal("ViewportSize"):Connect(update),
 				frame:GetPropertyChangedSignal("Size"):Connect(update),
 				frame.AncestryChanged:Connect(function()
-					for _, connection in connections do
+					for _, connection in ancestorConnections do
 						connection:Disconnect()
 					end
 					fullUpdate()
@@ -1052,7 +1088,8 @@ local function handleDynamic(frame, text, customization)
 					connections[1]:Disconnect()
 					connections[2]:Disconnect()
 					connections[3]:Disconnect()
-					for _, connection in connections do
+					connections[4]:Disconnect()
+					for _, connection in ancestorConnections do
 						connection:Disconnect()
 					end
 					frameDynamicConnections[frame] = nil
@@ -1068,7 +1105,8 @@ local function handleDynamic(frame, text, customization)
 			connections[1]:Disconnect()
 			connections[2]:Disconnect()
 			connections[3]:Disconnect()
-			for _, connection in connections[4] do
+			connections[4]:Disconnect()
+			for _, connection in connections[5] do -- connections[5] = ancestorConnections.
 				connection:Disconnect()
 			end
 			frameDynamicConnections[frame] = nil
@@ -1139,6 +1177,10 @@ local function correctCustomization(frame, text, customization)
 		elseif customization.Size > 100 then
 			customization.Size = 100
 		end
+		if not scaleSizeTypes[customization.ScaleSize] then
+			customization.ScaleSize = nil
+		end
+		
 		if type(customization.LineHeight) ~= "number" then
 			customization.LineHeight = defaultLineHeight
 		elseif customization.LineHeight < 0 then
@@ -1198,7 +1240,7 @@ local function correctCustomization(frame, text, customization)
 			end
 		end
 		
-		if not truncateTypes[customization.Truncate] then
+		if truncateTypes[customization.Truncate] then
 			customization.Truncate = nil
 		end
 		
@@ -1208,10 +1250,10 @@ local function correctCustomization(frame, text, customization)
 		if not yAlignments[customization.YAlignment] then
 			customization.YAlignment = defaultYAlignment
 		end
-		if type(customization.WordSorting) ~= "boolean" or not customization.WordSorting then
+		if customization.WordSorting ~= true then
 			customization.WordSorting = nil
 		end
-		if type(customization.LineSorting) ~= "boolean" or not customization.LineSorting then
+		if customization.LineSorting ~= true then
 			customization.LineSorting = nil
 		end
 	end
