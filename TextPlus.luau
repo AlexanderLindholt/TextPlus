@@ -312,7 +312,7 @@ export type Customization = {
 	
 	XAlignment: "Left" | "Center" | "Right" | "Justified",
 	YAlignment: "Top" | "Center" | "Bottom" | "Justified",
-
+	
 	WordSorting: boolean,
 	LineSorting: boolean,
 	
@@ -1027,6 +1027,8 @@ local function handleDynamic(frame, text, customization)
 							rootSizeY = viewportSize.Y - inset.Y
 						end
 						
+						table.insert(instance:GetPropertyChangedSignal("Size"):Connect(update))
+						
 						break
 					elseif instance:IsA("SurfaceGui") then
 						local adornee = instance.Adornee
@@ -1052,6 +1054,8 @@ local function handleDynamic(frame, text, customization)
 							rootSizeY = partSize.Z*pixelsPerStud
 						end
 						
+						table.insert(instance:GetPropertyChangedSignal("Size"):Connect(update))
+						
 						break
 					else
 						-- Verify instance and connect to size changed if gui.
@@ -1070,13 +1074,15 @@ local function handleDynamic(frame, text, customization)
 						rootSizeY*scaleY + offsetY
 					))
 				else
+					for _, connection in ancestorConnections do
+						connection:Disconnect()
+					end
 					render(frame, frameText[frame], frameCustomizations[frame], Vector2.zero)
 				end
 			end
 			fullUpdate()
 			local connections = nil
 			connections = {
-				camera:GetPropertyChangedSignal("ViewportSize"):Connect(update),
 				frame:GetPropertyChangedSignal("Size"):Connect(update),
 				frame.AncestryChanged:Connect(function()
 					for _, connection in ancestorConnections do
@@ -1088,7 +1094,6 @@ local function handleDynamic(frame, text, customization)
 					connections[1]:Disconnect()
 					connections[2]:Disconnect()
 					connections[3]:Disconnect()
-					connections[4]:Disconnect()
 					for _, connection in ancestorConnections do
 						connection:Disconnect()
 					end
@@ -1105,8 +1110,7 @@ local function handleDynamic(frame, text, customization)
 			connections[1]:Disconnect()
 			connections[2]:Disconnect()
 			connections[3]:Disconnect()
-			connections[4]:Disconnect()
-			for _, connection in connections[5] do -- connections[5] = ancestorConnections.
+			for _, connection in connections[4] do -- connections[4] = ancestorConnections.
 				connection:Disconnect()
 			end
 			frameDynamicConnections[frame] = nil
@@ -1133,11 +1137,14 @@ local function correctCustomization(frame, text, customization)
 	if not next(customization) then
 		-- Apply defaults.
 		customization.Font = defaultFont
+		
 		customization.Size = defaultSize
+		
 		customization.Color = defaultColor
 		customization.Transparency = defaultTransparency
-		customization.Rotation = defaultRotation
+		
 		customization.Offset = defaultOffset
+		customization.Rotation = defaultRotation
 		
 		customization.LineHeight = defaultLineHeight
 		customization.CharacterSpacing = defaultCharacterSpacing
@@ -1195,17 +1202,19 @@ local function correctCustomization(frame, text, customization)
 		elseif customization.CharacterSpacing > 3 then
 			customization.CharacterSpacing = 3
 		end
+		
 		if typeof(customization.Color) ~= "Color3" then
 			customization.Color = defaultColor
 		end
 		if type(customization.Transparency) ~= "number" then
 			customization.Transparency = defaultTransparency
 		end
-		if type(customization.Rotation) ~= "number" then
-			customization.Rotation = defaultRotation
-		end
+		
 		if typeof(customization.Offset) ~= "UDim2" then
 			customization.Offset = defaultOffset
+		end
+		if type(customization.Rotation) ~= "number" then
+			customization.Rotation = defaultRotation
 		end
 		
 		if type(customization.StrokeSize) ~= "number" then
@@ -1250,6 +1259,7 @@ local function correctCustomization(frame, text, customization)
 		if not yAlignments[customization.YAlignment] then
 			customization.YAlignment = defaultYAlignment
 		end
+		
 		if customization.WordSorting ~= true then
 			customization.WordSorting = nil
 		end
