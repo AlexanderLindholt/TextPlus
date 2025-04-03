@@ -1027,7 +1027,7 @@ local function handleDynamic(frame, text, customization)
 							rootSizeY = viewportSize.Y - inset.Y
 						end
 						
-						table.insert(instance:GetPropertyChangedSignal("Size"):Connect(update))
+						table.insert(camera:GetPropertyChangedSignal("ViewportSize"):Connect(update))
 						
 						break
 					elseif instance:IsA("SurfaceGui") then
@@ -1054,7 +1054,7 @@ local function handleDynamic(frame, text, customization)
 							rootSizeY = partSize.Z*pixelsPerStud
 						end
 						
-						table.insert(instance:GetPropertyChangedSignal("Size"):Connect(update))
+						table.insert(adornee:GetPropertyChangedSignal("Size"):Connect(update))
 						
 						break
 					else
@@ -1072,7 +1072,7 @@ local function handleDynamic(frame, text, customization)
 					render(frame, frameText[frame], frameCustomizations[frame], Vector2.new(
 						rootSizeX*scaleX + offsetX,
 						rootSizeY*scaleY + offsetY
-					))
+						))
 				else
 					for _, connection in ancestorConnections do
 						connection:Disconnect()
