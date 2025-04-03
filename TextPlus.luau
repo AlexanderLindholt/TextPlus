@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.8.0
+v1.8.1
 
 An efficient, robust, open-source text rendering module for
 Roblox, featuring custom fonts and advanced text control.
@@ -498,6 +498,11 @@ local function render(frame, text, customization, frameSize)
 		else
 			local viewportSize = camera.ViewportSize
 			size *= (viewportSize.X + viewportSize.Y)/2
+		end
+		if size < 1 then
+			size = 1
+		elseif size > 100 then
+			size = 100
 		end
 	end
 	
@@ -1177,15 +1182,23 @@ local function correctCustomization(frame, text, customization)
 			end
 		end
 		
-		if type(customization.Size) ~= "number" then
-			customization.Size = defaultSize
-		elseif customization.Size < 1 then
-			customization.Size = 1
-		elseif customization.Size > 100 then
-			customization.Size = 100
-		end
 		if not scaleSizeTypes[customization.ScaleSize] then
 			customization.ScaleSize = nil
+		end
+		if type(customization.Size) ~= "number" then
+			customization.Size = defaultSize
+		elseif customization.Size > 100 then
+			customization.Size = 100
+		else
+			if customization.ScaleSize then
+				if customization.Size < 0.001 then
+					customization.Size = 0.001
+				end
+			else
+				if customization.Size < 1 then
+					customization.Size = 1
+				end
+			end
 		end
 		
 		if type(customization.LineHeight) ~= "number" then
