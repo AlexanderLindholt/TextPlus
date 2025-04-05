@@ -76,6 +76,8 @@ local defaultSize = 14
 local defaultColor = Color3.fromRGB(0, 0, 0)
 local defaultTransparency = 0
 
+local defaultResampleMode = true   -- `true` means Bilinear, `false` is Near
+
 local defaultOffset = Vector2.zero
 local defaultRotation = 0
 
@@ -100,6 +102,8 @@ local customizationOptions = {
 	
 	Color = true,
 	Transparency = true,
+
+	ResampleMode = true,
 	
 	Offset = true,
 	Rotation = true,
@@ -295,6 +299,8 @@ export type Customization = {
 	
 	Color: Color3,
 	Transparency: number,
+
+	ResampleMode: boolean,
 	
 	Offset: UDim2,
 	Rotation: number,
@@ -508,6 +514,8 @@ local function render(frame, text, customization, frameSize)
 	
 	local color = customization.Color
 	local transparency = customization.Transparency
+
+	local resampleMode = customization.ResampleMode
 	
 	local offset = customization.Offset offset = UDim2.fromOffset(offset.X, offset.Y) -- Convert Vector2 to UDim2.
 	local rotation = customization.Rotation
@@ -607,6 +615,8 @@ local function render(frame, text, customization, frameSize)
 					imageLabel.Image = image
 					imageLabel.ImageColor3 = color
 					imageLabel.ImageTransparency = transparency
+					if bilinear then imageLabel.ResampleMode = Enum.ResamplerMode.Default
+					else imageLabel.ResampleMode = Enum.ResamplerMode.Pixelated end
 					-- Image cutout.
 					local width = data[1]
 					local height = data[2]
@@ -1147,6 +1157,8 @@ local function correctCustomization(frame, text, customization)
 		
 		customization.Color = defaultColor
 		customization.Transparency = defaultTransparency
+
+		customization.ResampleMode = defaultResampleMode
 		
 		customization.Offset = defaultOffset
 		customization.Rotation = defaultRotation
@@ -1222,6 +1234,10 @@ local function correctCustomization(frame, text, customization)
 		if type(customization.Transparency) ~= "number" then
 			customization.Transparency = defaultTransparency
 		end
+
+		if type(customization.Bilinear) ~= "boolean" then
+                        customization.Bilinear = defaultBilinear
+                end
 		
 		if typeof(customization.Offset) ~= "UDim2" then
 			customization.Offset = defaultOffset
