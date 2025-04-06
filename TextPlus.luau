@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.9.1
+v1.9.2
 
 An efficient, robust, open-source text rendering module for
 Roblox, featuring custom fonts and advanced text control.
@@ -69,6 +69,8 @@ local customFonts = require(script.CustomFonts)
 local camera = workspace.CurrentCamera
 
 local missingCharacter = "rbxassetid://75989824347198"
+
+local guiInset = GuiService:GetGuiInset()
 
 -- Defaults.
 local defaultFont = Font.new("rbxasset://fonts/families/SourceSansPro.json")
@@ -164,9 +166,9 @@ local frameDynamicConnections = {}
 local frameSizes = {}
 local frameSurfaceGuiSizes = {}
 
--- Roblox built-in font rendering stuff.
+-- Roblox built-in text rendering stuff.
 local textBoundsParams = Instance.new("GetTextBoundsParams")
-textBoundsParams.Size = 100 -- Size limit for Roblox built-in font rendering.
+textBoundsParams.Size = 100 -- Size limit for Roblox built-in text rendering.
 local characterWidthCache = {}
 
 -- Create a raw custom fonts table.
@@ -470,9 +472,8 @@ local function calculateAbsoluteSize(frame)
 				rootSizeX = viewportSize.X
 				rootSizeY = viewportSize.Y
 			else
-				local inset = GuiService:GetGuiInset()
-				rootSizeX = viewportSize.X - inset.X
-				rootSizeY = viewportSize.Y - inset.Y
+				rootSizeX = viewportSize.X - guiInset.X
+				rootSizeY = viewportSize.Y - guiInset.Y
 			end
 			
 			-- Ensure no saved surface size.
@@ -878,8 +879,8 @@ local function render(frame, text, customization, frameSize)
 					table.insert(currentLineWords, wordCharacters)
 				else
 					-- Insert characters and calculate word width.
-					for index = 1, #word, 1 do
-						local character = word:sub(index, index)
+					for startIndex, endIndex in utf8.graphemes(word) do
+						local character = word:sub(startIndex, endIndex)
 						local characterWidth = getCharacterWidth(character)
 						table.insert(wordCharacters, {character, characterWidth})
 						wordWidth += characterWidth
@@ -1152,9 +1153,8 @@ local function handleDynamic(frame, text, customization)
 							rootSizeX = viewportSize.X
 							rootSizeY = viewportSize.Y
 						else
-							local inset = GuiService:GetGuiInset()
-							rootSizeX = viewportSize.X - inset.X
-							rootSizeY = viewportSize.Y - inset.Y
+							rootSizeX = viewportSize.X - guiInset.X
+							rootSizeY = viewportSize.Y - guiInset.Y
 						end
 						
 						-- Ensure no saved surface size.
@@ -1210,7 +1210,7 @@ local function handleDynamic(frame, text, customization)
 					render(frame, frameText[frame], frameCustomizations[frame], Vector2.new(
 						rootSizeX*scaleX + offsetX,
 						rootSizeY*scaleY + offsetY
-					))
+						))
 				else
 					for _, connection in ancestorConnections do
 						connection:Disconnect()
