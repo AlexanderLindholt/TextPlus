@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.9.0
+v1.9.1
 
 An efficient, robust, open-source text rendering module for
 Roblox, featuring custom fonts and advanced text control.
@@ -440,7 +440,7 @@ local function calculateAbsoluteSize(frame)
 		if not parent then return Vector2.zero end
 		
 		-- Get size.
-		local grid = parent:FindFirstChild("UIGridLayout")
+		local grid = parent:FindFirstChildOfClass("UIGridLayout")
 		local size = nil
 		if grid then
 			size = grid.CellSize
@@ -461,8 +461,10 @@ local function calculateAbsoluteSize(frame)
 		
 		-- Check for root gui instance, and if found, calculate root size.
 		if instance:IsA("ScreenGui") then
+			-- Verify camera.
 			if not camera then return Vector2.zero end
 			
+			-- Calculate and save viewport size.
 			local viewportSize = camera.ViewportSize
 			if instance.IgnoreGuiInset then
 				rootSizeX = viewportSize.X
@@ -473,21 +475,24 @@ local function calculateAbsoluteSize(frame)
 				rootSizeY = viewportSize.Y - inset.Y
 			end
 			
+			-- Ensure no saved surface size.
 			frameSurfaceGuiSizes[frame] = nil
 			
+			-- Stop loop.
 			break
 		elseif instance:IsA("SurfaceGui") then
+			-- Get and verify adornee.
 			local adornee = instance.Adornee
 			if not adornee then
 				adornee = instance.Parent
-				if not adornee then return end
+				if not adornee then return Vector2.zero end
 			end
-			if not adornee:IsA("BasePart") then return end
+			if not adornee:IsA("BasePart") then return Vector2.zero end
 			
+			-- Calculate and save surface size.
 			local face = instance.Face
 			local pixelsPerStud = instance.PixelsPerStud
 			local partSize = adornee.Size
-			
 			if face == Enum.NormalId.Front or face == Enum.NormalId.Back then
 				rootSizeX = partSize.X*pixelsPerStud
 				rootSizeY = partSize.Y*pixelsPerStud
@@ -499,13 +504,13 @@ local function calculateAbsoluteSize(frame)
 				rootSizeX = partSize.X*pixelsPerStud
 				rootSizeY = partSize.Z*pixelsPerStud
 			end
-			
 			frameSurfaceGuiSizes[frame] = Vector2.new(rootSizeX, rootSizeY)
 			
+			-- Stop loop.
 			break
 		else
 			-- Verify instance.
-			if not instance:IsA("GuiObject") and not instance:IsA("Folder") then break end
+			if not instance:IsA("GuiObject") and not instance:IsA("Folder") then return Vector2.zero end
 		end
 	end
 	
@@ -1115,10 +1120,12 @@ local function handleDynamic(frame, text, customization)
 					if not parent then break end
 					
 					-- Get size.
-					local grid = parent:FindFirstChild("UIGridLayout")
+					local grid = parent:FindFirstChildOfClass("UIGridLayout")
 					local size = nil
 					if grid then
 						size = grid.CellSize
+						-- Connect to size changed.
+						table.insert(ancestorConnections, grid:GetPropertyChangedSignal("CellSize"):Connect(update))
 					else
 						size = instance.Size
 					end
@@ -1136,8 +1143,10 @@ local function handleDynamic(frame, text, customization)
 					
 					-- Check for root gui instance, and if found, calculate root size.
 					if instance:IsA("ScreenGui") then
+						-- Verify camera.
 						if not camera then break end
 						
+						-- Calculate and save viewport size.
 						local viewportSize = camera.ViewportSize
 						if instance.IgnoreGuiInset then
 							rootSizeX = viewportSize.X
@@ -1148,12 +1157,16 @@ local function handleDynamic(frame, text, customization)
 							rootSizeY = viewportSize.Y - inset.Y
 						end
 						
+						-- Ensure no saved surface size.
 						frameSurfaceGuiSizes[frame] = nil
 						
+						-- Connect to size changed.
 						table.insert(ancestorConnections, camera:GetPropertyChangedSignal("ViewportSize"):Connect(update))
 						
+						-- Stop loop.
 						break
 					elseif instance:IsA("SurfaceGui") then
+						-- Get and verify adornee.
 						local adornee = instance.Adornee
 						if not adornee then
 							adornee = instance.Parent
@@ -1161,10 +1174,10 @@ local function handleDynamic(frame, text, customization)
 						end
 						if not adornee:IsA("BasePart") then break end
 						
+						-- Calculate and save surface size.
 						local face = instance.Face
 						local pixelsPerStud = instance.PixelsPerStud
 						local partSize = adornee.Size
-						
 						if face == Enum.NormalId.Front or face == Enum.NormalId.Back then
 							rootSizeX = partSize.X*pixelsPerStud
 							rootSizeY = partSize.Y*pixelsPerStud
@@ -1176,11 +1189,11 @@ local function handleDynamic(frame, text, customization)
 							rootSizeX = partSize.X*pixelsPerStud
 							rootSizeY = partSize.Z*pixelsPerStud
 						end
-						
 						frameSurfaceGuiSizes[frame] = Vector2.new(rootSizeX, rootSizeY)
 						
 						table.insert(ancestorConnections, adornee:GetPropertyChangedSignal("Size"):Connect(update))
 						
+						-- Stop loop.
 						break
 					else
 						-- Verify instance and connect to size changed if gui.
