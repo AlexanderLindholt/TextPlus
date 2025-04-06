@@ -12,16 +12,13 @@ Roblox, featuring custom fonts and advanced text control.
 <br>
 
 # 🎨 More creativity!
-Roblox developers suffer from a wide range of limitations.
-
-**This module aims to fix text limitations, allowing more<br>
-developers to unleash their creativity with text.**
-
-What it really does:
+A new way of rendering and editing text is here.
 - **Custom fonts:** Use any font file, whether completely custom or one found online.
 - **Advanced control**:
-  - Easily transform and style any individual character, word or line.
+  - Easily transform and style any individual character, word or line with freedom.
   - Utilize awesome text styling like 'justified' alignments and spacing controls.
+  - Effortlessly setup text scaling, so that it's the perfect size for all devices.
+    - *Differs from the `TextScaled` property on TextLabels. Learn more in the tutorial.*
 <br>
 <br>
 
