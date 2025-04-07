@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.9.2
+v1.9.3
 
 An efficient, robust, open-source text rendering module for
 Roblox, featuring custom fonts and advanced text control.
@@ -68,7 +68,7 @@ local customFonts = require(script.CustomFonts)
 
 local camera = workspace.CurrentCamera
 
-local missingCharacter = "rbxassetid://75989824347198"
+local missingCharacter = "rbxassetid://75989824347198" -- Is used when a character is missing in a custom font.
 
 local guiInset = GuiService:GetGuiInset()
 
@@ -231,11 +231,10 @@ if next(customFonts) then
 		return true
 	end
 	local function processFonts(parent, parentPath)
-		local remove = {}
-		local freeze = {}
+		local remove = {} -- Because immediate removal will throw off the loop.
+		local freeze = {} -- Because freezing before removal will not allow for removal.
 		for key, value in parent do
 			if type(value) ~= "table" then
-				-- Insert for later removal.
 				table.insert(remove, key)
 			else
 				local currentPath = parentPath.."."..key
@@ -564,14 +563,15 @@ local function render(frame, text, customization, frameSize)
 	
 	local pixelated = customization.Pixelated
 	
-	local offset = customization.Offset offset = UDim2.fromOffset(offset.X, offset.Y) -- Convert Vector2 to UDim2.
+	local offset = customization.Offset
+	offset = UDim2.fromOffset(offset.X*size, offset.Y*size) -- Convert Vector2 to UDim2, get the offset relative to size.
 	local rotation = customization.Rotation
 	
 	local strokeSize = customization.StrokeSize
 	
 	local shadowOffset = customization.ShadowOffset
 	
-	local lineHeight = customization.LineHeight*size -- Multiply by size to get it from scale to pixels.
+	local lineHeight = customization.LineHeight*size -- Get the line height relative to size.
 	local characterSpacing = customization.CharacterSpacing
 	
 	local truncate = customization.Truncate
@@ -1210,7 +1210,7 @@ local function handleDynamic(frame, text, customization)
 					render(frame, frameText[frame], frameCustomizations[frame], Vector2.new(
 						rootSizeX*scaleX + offsetX,
 						rootSizeY*scaleY + offsetY
-						))
+					))
 				else
 					for _, connection in ancestorConnections do
 						connection:Disconnect()
