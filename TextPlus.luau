@@ -564,7 +564,7 @@ local function render(frame, text, customization, frameSize)
 	local pixelated = customization.Pixelated
 	
 	local offset = customization.Offset
-	offset = UDim2.fromOffset(offset.X*size, offset.Y*size) -- Convert Vector2 to UDim2, get the offset relative to size.
+	offset = UDim2.fromOffset(offset.X*0.01*size, offset.Y*0.01*size) -- Convert Vector2 to UDim2, get the offset relative to size.
 	local rotation = customization.Rotation
 	
 	local strokeSize = customization.StrokeSize
