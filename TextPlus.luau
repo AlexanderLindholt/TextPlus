@@ -213,7 +213,8 @@ if next(customFonts) then
 		for key, value in characters do
 			-- Verify format.
 			if type(key) ~= "string" then return end
-			if #key ~= 1 then return end
+			-- Viliam: you forgor to comment/remove this line
+			-- if #key ~= 1 then return end 
 			if type(value) ~= "table" then return end
 			if type(value[1]) ~= "number" then return end
 			if type(value[2]) ~= "number" then return end
