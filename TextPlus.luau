@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.9.3
+v1.9.4
 
 An efficient, robust, open-source text rendering module for
 Roblox, featuring custom fonts and advanced text control.
@@ -213,7 +213,6 @@ if next(customFonts) then
 		for key, value in characters do
 			-- Verify format.
 			if type(key) ~= "string" then return end
-			if #key ~= 1 then return end
 			if type(value) ~= "table" then return end
 			if type(value[1]) ~= "number" then return end
 			if type(value[2]) ~= "number" then return end
