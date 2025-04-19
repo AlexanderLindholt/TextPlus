@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.9.4
+v1.9.5
 
 An efficient, robust, open-source text rendering module for
 Roblox, featuring custom fonts and advanced text control.
@@ -30,7 +30,7 @@ Roblox, featuring custom fonts and advanced text control.
 GitHub:
 https://github.com/AlexanderLindholt/TextPlus
 
-Devforum:
+DevForum:
 https://devforum.roblox.com/t/3521684
 
 
@@ -297,39 +297,39 @@ export type CustomFont = {
 	}
 }
 export type Customization = {
-	Font: Font | CustomFont,
+	Font: Font | CustomFont?,
 	
-	Size: number,
-	ScaleSize: "X" | "Y" | "XY",
+	Size: number?,
+	ScaleSize: "X" | "Y" | "XY"?,
 	
-	Color: Color3,
-	Transparency: number,
+	Color: Color3?,
+	Transparency: number?,
 	
-	Pixelated: boolean,
+	Pixelated: boolean?,
 	
-	Offset: UDim2,
-	Rotation: number,
+	Offset: UDim2?,
+	Rotation: number?,
 	
-	StrokeSize: number,
-	StrokeColor: Color3,
-	StrokeTransparency: number,
+	StrokeSize: number?,
+	StrokeColor: Color3?,
+	StrokeTransparency: number?,
 	
-	ShadowOffset: number,
-	ShadowColor: number,
-	ShadowTransparency: number,
+	ShadowOffset: number?,
+	ShadowColor: number?,
+	ShadowTransparency: number?,
 	
-	LineHeight: number,
-	CharacterSpacing: number,
+	LineHeight: number?,
+	CharacterSpacing: number?,
 	
-	Truncate: "Clear" | "Cut",
+	Truncate: "Clear" | "Cut"?,
 	
-	XAlignment: "Left" | "Center" | "Right" | "Justified",
-	YAlignment: "Top" | "Center" | "Bottom" | "Justified",
+	XAlignment: "Left" | "Center" | "Right" | "Justified"?,
+	YAlignment: "Top" | "Center" | "Bottom" | "Justified"?,
 	
-	WordSorting: boolean,
-	LineSorting: boolean,
+	WordSorting: boolean?,
+	LineSorting: boolean?,
 	
-	Dynamic: boolean
+	Dynamic: boolean?
 }
 type Container = Frame | ScrollingFrame | CanvasGroup
 
@@ -343,7 +343,7 @@ Gets the raw text string for a frame.
 ]]--
 module.GetText = function(frame: Container): Customization
 	-- Argument errors.
-	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame received.") end
+	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame provided.", 2) end
 	
 	-- Get and return text.
 	return frameText[frame]
@@ -353,7 +353,7 @@ Gets the customization for a frame.
 ]]--
 module.GetCustomization = function(frame: Container): Customization
 	-- Argument errors.
-	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame received.") end
+	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame provided.", 2) end
 	
 	-- Get and return customization.
 	return frameCustomizations[frame]
@@ -364,7 +364,7 @@ Returns <code>Vector2.zero</code> if not found.
 ]]--
 module.GetTextBounds = function(frame: Container): Vector2
 	-- Argument errors.
-	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame received.") end
+	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame provided.", 2) end
 	
 	-- Get and return text bounds
 	local textBounds = frameTextBounds[frame]
@@ -383,7 +383,7 @@ Works with any sorting.</em>
 ]]--
 module.GetCharacters = function(frame: Container): {TextLabel | ImageLabel}
 	-- Argument errors.
-	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame received.") end
+	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame provided.", 2) end
 	
 	-- Get and verify customization.
 	local customization = frameCustomizations[frame]
@@ -1457,9 +1457,9 @@ If text is already present, it will overwrite text and merge customizations.
 ]]--
 module.Create = function(frame: Container, text: string, customization: Customization?)
 	-- Argument errors.
-	if not text then error("No text received.") end
-	if text == "" then error("Use 'frame:ClearAllChildren()' instead, if you want to clear the text.") end
-	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame received.") end
+	if not text then error("No text provided.", 2) end
+	if text == "" then error("Use 'frame:ClearAllChildren()' instead, if you want to clear the text.", 2) end
+	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame provided.", 2) end
 	
 	-- Handle customization.
 	if frameCustomizations[frame] then
