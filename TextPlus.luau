@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.9.5
+v1.9.6
 
 An efficient, robust, open-source text rendering module for
 Roblox, featuring custom fonts and advanced text control.
@@ -307,14 +307,14 @@ export type Customization = {
 	
 	Pixelated: boolean?,
 	
-	Offset: UDim2?,
+	Offset: Vector2?,
 	Rotation: number?,
 	
 	StrokeSize: number?,
 	StrokeColor: Color3?,
 	StrokeTransparency: number?,
 	
-	ShadowOffset: number?,
+	ShadowOffset: Vector2?,
 	ShadowColor: number?,
 	ShadowTransparency: number?,
 	
@@ -1365,7 +1365,7 @@ local function correctCustomization(frame, text, customization)
 			customization.Pixelated = nil
 		end
 		
-		if typeof(customization.Offset) ~= "UDim2" then
+		if typeof(customization.Offset) ~= "Vector2" then
 			customization.Offset = defaultOffset
 		end
 		if type(customization.Rotation) ~= "number" then
