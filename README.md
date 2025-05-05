@@ -26,7 +26,6 @@ A new way of rendering and editing text is here.
 - Blazingly fast speeds.
 - Clear error feedback.
 - Typing & documentation.
-
 <br>
 <br>
 
