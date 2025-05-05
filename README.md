@@ -30,4 +30,4 @@ A new way of rendering and editing text is here.
 <br>
 <br>
 
-# Check out the [guides and documentation](https://alexanderlindholt.gitbook.io/textplus) to learn all about it!
+## Check out the [guides and documentation](https://alexanderlindholt.gitbook.io/textplus) to learn all about it!
