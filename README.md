@@ -12,7 +12,7 @@ Roblox, featuring custom fonts and advanced text control.
 <br>
 
 # 🎨 More creativity!
-A new way of rendering and editing text is here.
+Experience text in Roblox like it should've been.
 - **Custom fonts:** Use any font file, whether completely custom or one found online.
 - **Advanced control**:
   - Easily transform and style any individual character, word or line with freedom.
