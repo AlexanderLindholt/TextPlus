@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.10.0
+v1.10.1
 
 An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
@@ -1252,7 +1252,7 @@ local function handleDynamic(frame, text, customization)
 		frameDynamicConnections[frame] = connections
 	end
 end
-local function disableDynamic(frame, text, customization)
+local function disableDynamic(frame, customization)
 	-- Remove connections.
 	local connections = frameDynamicConnections[frame]
 	if connections then
@@ -1422,7 +1422,7 @@ local function correctCustomization(customization)
 		end
 	end
 	
-	if truncateTypes[customization.Truncate] then
+	if not truncateTypes[customization.Truncate] then
 		customization.Truncate = nil
 	end
 	
@@ -1494,7 +1494,7 @@ module.Create = function(frame: Container, text: string, customization: Customiz
 		else
 			-- Dynamic disabling.
 			if customization.Dynamic == false then
-				disableDynamic(frame, text, customization)
+				disableDynamic(frame, customization)
 			end
 			
 			-- Create.
@@ -1511,7 +1511,7 @@ module.Create = function(frame: Container, text: string, customization: Customiz
 				end
 			end
 			-- Correct customization.
-			correctCustomization(frame, text, customization)
+			correctCustomization(customization)
 			
 			-- Handle dynamic, calculate size, and render.
 			if customization.Dynamic == true then
