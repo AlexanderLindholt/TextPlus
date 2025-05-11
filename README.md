@@ -11,21 +11,21 @@ Roblox, featuring custom fonts and advanced text control.
 ​<br>
 <br>
 
-# 🎨 More creativity!
+# ✨ Powerful creativity.
 Experience text in Roblox like it should've been.
-- **Custom fonts:** Use any font file, whether completely custom or one found online.
+- **Custom fonts:** Use any font file, whether one of your own or one you found online.
 - **Advanced control**:
   - Easily transform and style any individual character, word or line with freedom.
-  - Utilize awesome text styling like 'justified' alignments and spacing controls.
-  - Effortlessly setup text scaling, so that it's the perfect size for all devices.
-    - *Differs from the `TextScaled` property on TextLabels. Learn more in the tutorial.*
+  - Utilize awesome text styling like justified alignments and spacing controls.
+  - Effortlessly setup text scaling, so that it's the perfect size on all devices.
+    - *Differs from `TextScaled`. Learn more at the documentation.*
 <br>
 <br>
 
-# ⚡ Efficient, robust, intuitive.
-- Blazingly fast speeds.
-- Clear error feedback.
-- Typing & documentation.
+# ⚡ Fast, stable, intuitive.
+- Blazingly fast, lag-free performance.
+- Catches errors with clear feedback.
+- Proper typing and documentation.
 <br>
 <br>
 
