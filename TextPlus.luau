@@ -21,9 +21,9 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.9.6
+v1.10.0
 
-An efficient, robust, open-source text rendering module for
+An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
 
 
@@ -102,7 +102,10 @@ local customizationOptions = {
 	Font = true,
 	
 	Size = true,
+	
 	ScaleSize = true,
+	MinimumSize = true,
+	MaximumSize = true,
 	
 	Color = true,
 	Transparency = true,
@@ -300,7 +303,10 @@ export type Customization = {
 	Font: Font | CustomFont?,
 	
 	Size: number?,
+	
 	ScaleSize: "X" | "Y" | "XY"?,
+	MinimumSize: number?,
+	MaximumSize: number?,
 	
 	Color: Color3?,
 	Transparency: number?,
@@ -366,10 +372,8 @@ module.GetTextBounds = function(frame: Container): Vector2
 	-- Argument errors.
 	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame provided.", 2) end
 	
-	-- Get and return text bounds
-	local textBounds = frameTextBounds[frame]
-	if not textBounds then return Vector2.zero end
-	return textBounds
+	-- Get and return text bounds.
+	return frameTextBounds[frame] or Vector2.zero
 end
 
 local function noOperation()
@@ -378,7 +382,7 @@ end
 --[[
 Returns an iterator function for looping through all characters in the specified frame.
 
-<em>Ignores sorting folders
+<em>Ignores sorting folders.
 Works with any sorting.</em>
 ]]--
 module.GetCharacters = function(frame: Container): {TextLabel | ImageLabel}
@@ -554,6 +558,18 @@ local function render(frame, text, customization, frameSize)
 			size = 1
 		elseif type(font) ~= "table" and size > 100 then
 			size = 100
+		else
+			-- Apply user's limits.
+			if customization.MinimumSize then
+				if customization.Size < customization.MinimumSize then
+					customization.Size = customization.MinimumSize
+				end
+			end
+			if customization.MaximumSize then
+				if customization.Size > customization.MaximumSize then
+					customization.Size = customization.MaximumSize
+				end
+			end
 		end
 	end
 	
@@ -603,12 +619,10 @@ local function render(frame, text, customization, frameSize)
 			
 			getCharacterWidth = function(character)
 				local data = characters[character]
-				if data then
-					return data[6]*size*characterSpacing
-				else
-					-- Missing character.
-					return size
-				end
+				return if data then
+					data[6]*size*characterSpacing
+					else -- Missing character.
+					size -- The 'missing' character is square, so height ('size') and width is the same.
 			end
 			if shadowOffset then
 				-- Shadow.
@@ -735,10 +749,8 @@ local function render(frame, text, customization, frameSize)
 					textBoundsParams.Text = character
 					width = TextService:GetTextBoundsAsync(textBoundsParams).X*0.01
 					characterWidthCache[fontKey] = width
-					return width*size*characterSpacing
-				else
-					return width*size*characterSpacing
 				end
+				return width*size*characterSpacing
 			end
 			if shadowOffset then
 				-- Shadow.
@@ -1081,230 +1093,238 @@ local function render(frame, text, customization, frameSize)
 	frameTextBounds[frame] = Vector2.new(textWidth, textHeight)
 end
 local function handleDynamic(frame, text, customization)
-	if customization.Dynamic == true then
-		if frameDynamicConnections[frame] then
-			-- Cache information.
-			frameText[frame] = text
-			frameCustomizations[frame] = customization
-			-- Render.
-			render(frame, text, customization, frameSizes[frame])
-		else
-			-- Cache information.
-			frameText[frame] = text
-			frameCustomizations[frame] = customization
-			
-			-- Setup dynamic stuff.
-			local ancestorConnections = {}
-			local function update()
-				local size = calculateAbsoluteSize(frame)
-				frameSizes[frame] = size
-				render(frame, frameText[frame], frameCustomizations[frame], size)
-			end
-			local function fullUpdate()
-				-- Calculate absolute size, and connect to size changed for ancestors.
-				local instance = frame
-				
-				local scaleX = 1
-				local scaleY = 1
-				local offsetX = 0
-				local offsetY = 0
-				
-				local rootSizeX = nil
-				local rootSizeY = nil
-				
-				while true do
-					-- Cache parent.
-					local parent = instance.Parent
-					
-					-- Ensure a parent.
-					if not parent then break end
-					
-					-- Get size.
-					local grid = parent:FindFirstChildOfClass("UIGridLayout")
-					local size = nil
-					if grid then
-						size = grid.CellSize
-						-- Connect to size changed.
-						table.insert(ancestorConnections, grid:GetPropertyChangedSignal("CellSize"):Connect(update))
-					else
-						size = instance.Size
-					end
-					local x = size.X
-					local y = size.Y
-					-- Accumulate offsets using current scale.
-					offsetX = x.Offset*scaleX + offsetX
-					offsetY = y.Offset*scaleY + offsetY
-					-- Update scales.
-					scaleX = x.Scale*scaleX
-					scaleY = y.Scale*scaleY
-					
-					-- Traverse.
-					instance = parent
-					
-					-- Check for root gui instance, and if found, calculate root size.
-					if instance:IsA("ScreenGui") then
-						-- Verify camera.
-						if not camera then break end
-						
-						-- Calculate and save viewport size.
-						local viewportSize = camera.ViewportSize
-						if instance.IgnoreGuiInset then
-							rootSizeX = viewportSize.X
-							rootSizeY = viewportSize.Y
-						else
-							rootSizeX = viewportSize.X - guiInset.X
-							rootSizeY = viewportSize.Y - guiInset.Y
-						end
-						
-						-- Ensure no saved surface size.
-						frameSurfaceGuiSizes[frame] = nil
-						
-						-- Connect to size changed.
-						table.insert(ancestorConnections, camera:GetPropertyChangedSignal("ViewportSize"):Connect(update))
-						
-						-- Stop loop.
-						break
-					elseif instance:IsA("SurfaceGui") then
-						-- Get and verify adornee.
-						local adornee = instance.Adornee
-						if not adornee then
-							adornee = instance.Parent
-							if not adornee then break end
-						end
-						if not adornee:IsA("BasePart") then break end
-						
-						-- Calculate and save surface size.
-						local face = instance.Face
-						local pixelsPerStud = instance.PixelsPerStud
-						local partSize = adornee.Size
-						if face == Enum.NormalId.Front or face == Enum.NormalId.Back then
-							rootSizeX = partSize.X*pixelsPerStud
-							rootSizeY = partSize.Y*pixelsPerStud
-						elseif face == Enum.NormalId.Left or face == Enum.NormalId.Right then
-							rootSizeX = partSize.Z*pixelsPerStud
-							rootSizeY = partSize.Y*pixelsPerStud
-						else
-							-- Top or bottom face.
-							rootSizeX = partSize.X*pixelsPerStud
-							rootSizeY = partSize.Z*pixelsPerStud
-						end
-						frameSurfaceGuiSizes[frame] = Vector2.new(rootSizeX, rootSizeY)
-						
-						table.insert(ancestorConnections, adornee:GetPropertyChangedSignal("Size"):Connect(update))
-						
-						-- Stop loop.
-						break
-					else
-						-- Verify instance and connect to size changed if gui.
-						if instance:IsA("GuiObject") then
-							table.insert(ancestorConnections, instance:GetPropertyChangedSignal("Size"):Connect(update))
-						elseif not instance:IsA("Folder") then
-							break
-						end
-					end
-				end
-				
-				-- Final calculation and update the text.
-				if rootSizeX then
-					render(frame, frameText[frame], frameCustomizations[frame], Vector2.new(
-						rootSizeX*scaleX + offsetX,
-						rootSizeY*scaleY + offsetY
-					))
-				else
-					for _, connection in ancestorConnections do
-						connection:Disconnect()
-					end
-					render(frame, frameText[frame], frameCustomizations[frame], Vector2.zero)
-				end
-			end
-			fullUpdate()
-			local connections = nil
-			connections = {
-				frame:GetPropertyChangedSignal("Size"):Connect(update),
-				frame.AncestryChanged:Connect(function()
-					for _, connection in ancestorConnections do
-						connection:Disconnect()
-					end
-					fullUpdate()
-				end),
-				frame.Destroying:Connect(function()
-					connections[1]:Disconnect()
-					connections[2]:Disconnect()
-					connections[3]:Disconnect()
-					for _, connection in ancestorConnections do
-						connection:Disconnect()
-					end
-					frameDynamicConnections[frame] = nil
-				end),
-				ancestorConnections
-			}
-			frameDynamicConnections[frame] = connections
-		end
-	elseif customization.Dynamic == false then
-		-- Disable dynamic.
-		local connections = frameDynamicConnections[frame]
-		if connections then
-			connections[1]:Disconnect()
-			connections[2]:Disconnect()
-			connections[3]:Disconnect()
-			for _, connection in connections[4] do -- connections[4] = ancestorConnections.
-				connection:Disconnect()
-			end
-			frameDynamicConnections[frame] = nil
-			
-			frame:GetPropertyChangedSignal("Size"):Once(function()
-				frameSizes[frame] = nil
-			end)
-		end
-		
-		-- Get rid of the non-true value.
-		customization.Dynamic = nil
+	if frameDynamicConnections[frame] then
 		-- Cache information.
 		frameText[frame] = text
 		frameCustomizations[frame] = customization
+		-- Render.
+		render(frame, text, customization, frameSizes[frame])
 	else
-		-- Get rid of the non-true value.
-		customization.Dynamic = nil
 		-- Cache information.
 		frameText[frame] = text
 		frameCustomizations[frame] = customization
+		
+		-- Setup dynamic stuff.
+		local ancestorConnections = {}
+		local function update()
+			local size = calculateAbsoluteSize(frame)
+			frameSizes[frame] = size
+			render(frame, frameText[frame], frameCustomizations[frame], size)
+		end
+		local function fullUpdate()
+			-- Calculate absolute size, and connect to size changed for ancestors.
+			local instance = frame
+			
+			local scaleX = 1
+			local scaleY = 1
+			local offsetX = 0
+			local offsetY = 0
+			
+			local rootSizeX = nil
+			local rootSizeY = nil
+			
+			while true do
+				-- Cache parent.
+				local parent = instance.Parent
+				
+				-- Ensure a parent.
+				if not parent then break end
+				
+				-- Get size.
+				local grid = parent:FindFirstChildOfClass("UIGridLayout")
+				local size = nil
+				if grid then
+					size = grid.CellSize
+					-- Connect to size changed.
+					table.insert(ancestorConnections, grid:GetPropertyChangedSignal("CellSize"):Connect(update))
+				else
+					size = instance.Size
+				end
+				local x = size.X
+				local y = size.Y
+				-- Accumulate offsets using current scale.
+				offsetX = x.Offset*scaleX + offsetX
+				offsetY = y.Offset*scaleY + offsetY
+				-- Update scales.
+				scaleX = x.Scale*scaleX
+				scaleY = y.Scale*scaleY
+				
+				-- Traverse.
+				instance = parent
+				
+				-- Check for root gui instance, and if found, calculate root size.
+				if instance:IsA("ScreenGui") then
+					-- Verify camera.
+					if not camera then break end
+					
+					-- Calculate and save viewport size.
+					local viewportSize = camera.ViewportSize
+					if instance.IgnoreGuiInset then
+						rootSizeX = viewportSize.X
+						rootSizeY = viewportSize.Y
+					else
+						rootSizeX = viewportSize.X - guiInset.X
+						rootSizeY = viewportSize.Y - guiInset.Y
+					end
+					
+					-- Ensure no saved surface size.
+					frameSurfaceGuiSizes[frame] = nil
+					
+					-- Connect to size changed.
+					table.insert(ancestorConnections, camera:GetPropertyChangedSignal("ViewportSize"):Connect(update))
+					
+					-- Stop loop.
+					break
+				elseif instance:IsA("SurfaceGui") then
+					-- Get and verify adornee.
+					local adornee = instance.Adornee
+					if not adornee then
+						adornee = instance.Parent
+						if not adornee then break end
+					end
+					if not adornee:IsA("BasePart") then break end
+					
+					-- Calculate and save surface size.
+					local face = instance.Face
+					local pixelsPerStud = instance.PixelsPerStud
+					local partSize = adornee.Size
+					if face == Enum.NormalId.Front or face == Enum.NormalId.Back then
+						rootSizeX = partSize.X*pixelsPerStud
+						rootSizeY = partSize.Y*pixelsPerStud
+					elseif face == Enum.NormalId.Left or face == Enum.NormalId.Right then
+						rootSizeX = partSize.Z*pixelsPerStud
+						rootSizeY = partSize.Y*pixelsPerStud
+					else
+						-- Top or bottom face.
+						rootSizeX = partSize.X*pixelsPerStud
+						rootSizeY = partSize.Z*pixelsPerStud
+					end
+					frameSurfaceGuiSizes[frame] = Vector2.new(rootSizeX, rootSizeY)
+					
+					table.insert(ancestorConnections, adornee:GetPropertyChangedSignal("Size"):Connect(update))
+					
+					-- Stop loop.
+					break
+				else
+					-- Verify instance and connect to size changed if gui.
+					if instance:IsA("GuiObject") then
+						table.insert(ancestorConnections, instance:GetPropertyChangedSignal("Size"):Connect(update))
+					elseif not instance:IsA("Folder") then
+						break
+					end
+				end
+			end
+			
+			-- Final calculation and update the text.
+			if rootSizeX then
+				render(frame, frameText[frame], frameCustomizations[frame], Vector2.new(
+					rootSizeX*scaleX + offsetX,
+					rootSizeY*scaleY + offsetY
+				))
+			else
+				for _, connection in ancestorConnections do
+					connection:Disconnect()
+				end
+				render(frame, frameText[frame], frameCustomizations[frame], Vector2.zero)
+			end
+		end
+		fullUpdate()
+		local connections = nil
+		connections = {
+			frame:GetPropertyChangedSignal("Size"):Connect(update),
+			frame.AncestryChanged:Connect(function()
+				for _, connection in ancestorConnections do
+					connection:Disconnect()
+				end
+				fullUpdate()
+			end),
+			frame.Destroying:Connect(function()
+				connections[1]:Disconnect()
+				connections[2]:Disconnect()
+				connections[3]:Disconnect()
+				for _, connection in ancestorConnections do
+					connection:Disconnect()
+				end
+				frameDynamicConnections[frame] = nil
+			end),
+			ancestorConnections
+		}
+		frameDynamicConnections[frame] = connections
 	end
 end
-local function correctCustomization(frame, text, customization)
-	if not next(customization) then
-		-- Apply defaults.
-		customization.Font = defaultFont
+local function disableDynamic(frame, text, customization)
+	-- Remove connections.
+	local connections = frameDynamicConnections[frame]
+	if connections then
+		connections[1]:Disconnect()
+		connections[2]:Disconnect()
+		connections[3]:Disconnect()
+		for _, connection in connections[4] do -- connections[4] = ancestorConnections.
+			connection:Disconnect()
+		end
+		frameDynamicConnections[frame] = nil
+	end
+	
+	-- Get rid of the non-true value.
+	customization.Dynamic = nil
+end
+local function correctCustomization(customization)
+	if not scaleSizeTypes[customization.ScaleSize] then
+		-- Scale-size disabled.
+		customization.ScaleSize = nil
+		customization.MinimumSize = nil
+		customization.MaximumSize = nil
 		
-		customization.Size = defaultSize
-		
-		customization.Color = defaultColor
-		customization.Transparency = defaultTransparency
-		
-		customization.Offset = defaultOffset
-		customization.Rotation = defaultRotation
-		
-		customization.LineHeight = defaultLineHeight
-		customization.CharacterSpacing = defaultCharacterSpacing
-		
-		customization.XAlignment = defaultXAlignment
-		customization.YAlignment = defaultYAlignment
+		if type(customization.Size) ~= "number" then
+			customization.Size = defaultSize
+		elseif customization.Size < 1 then
+			customization.Size = 1
+		end
 	else
-		-- Correct customizations.
-		if not scaleSizeTypes[customization.ScaleSize] then
-			customization.ScaleSize = nil
-			
-			if type(customization.Size) ~= "number" then
-				customization.Size = defaultSize
-			elseif customization.Size < 1 then
-				customization.Size = 1
-			end
-		else
-			if type(customization.Size) ~= "number" then
-				customization.Size = defaultSize
-			end
+		-- Scale-size enabled.
+		if type(customization.MinimumSize) ~= "number" then
+			customization.MinimumSize = nil
+		elseif customization.MinimumSize < 1 then
+			customization.MinimumSize = 1
+		end
+		if type(customization.MaximumSize) ~= "number" then
+			customization.MaximumSize = nil
+		elseif customization.MaximumSize < 1 then
+			customization.MaximumSize = 1
 		end
 		
-		if customization.Font == nil then
+		if type(customization.Size) ~= "number" then
+			customization.Size = defaultSize
+		end
+	end
+	
+	if customization.Font == nil then
+		customization.Font = defaultFont
+		textBoundsParams.Font = defaultFont
+		
+		-- Limit size.
+		if customization.Size > 100 then
+			customization.Size = 100
+		end
+	elseif typeof(customization.Font) == "Font" then -- Roblox font.
+		-- Verify font.
+		textBoundsParams.Font = customization.Font
+		textBoundsParams.Text = " "
+		local _, result = pcall(TextService.GetTextBoundsAsync, TextService, textBoundsParams)
+		if type(result) == "string" then
+			warn("Invalid font. Using default.")
+			customization.Font = defaultFont
+			textBoundsParams.Font = defaultFont
+		end
+		
+		-- Limit size.
+		if customization.Size > 100 then
+			customization.Size = 100
+		end
+	else
+		-- Custom font.
+		if not rawCustomFonts[customization.Font] then
+			warn("Invalid font. Using default.")
 			customization.Font = defaultFont
 			textBoundsParams.Font = defaultFont
 			
@@ -1312,142 +1332,130 @@ local function correctCustomization(frame, text, customization)
 			if customization.Size > 100 then
 				customization.Size = 100
 			end
-		elseif typeof(customization.Font) == "Font" then -- Roblox font.
-			-- Verify font.
-			textBoundsParams.Font = customization.Font
-			textBoundsParams.Text = " "
-			local _, result = pcall(function()
-				return TextService:GetTextBoundsAsync(textBoundsParams)
-			end)
-			if type(result) == "string" then
-				warn("Invalid font. Using default.")
-				customization.Font = defaultFont
-				textBoundsParams.Font = defaultFont
-			end
-			
-			-- Limit size.
-			if customization.Size > 100 then
-				customization.Size = 100
-			end
-		else
-			-- Custom font.
-			if not rawCustomFonts[customization.Font] then
-				warn("Invalid font. Using default.")
-				customization.Font = defaultFont
-				textBoundsParams.Font = defaultFont
-				
-				-- Limit size.
-				if customization.Size > 100 then
-					customization.Size = 100
-				end
-			end
 		end
-		
-		if type(customization.LineHeight) ~= "number" then
-			customization.LineHeight = defaultLineHeight
-		elseif customization.LineHeight < 0 then
-			customization.LineHeight = 0
-		end
-		if type(customization.CharacterSpacing) ~= "number" then
-			customization.CharacterSpacing = defaultCharacterSpacing
-		elseif customization.CharacterSpacing < 0 then
-			customization.CharacterSpacing = 0
-		end
-		
-		if typeof(customization.Color) ~= "Color3" then
-			customization.Color = defaultColor
-		end
-		if type(customization.Transparency) ~= "number" then
-			customization.Transparency = defaultTransparency
-		end
-		
-		if customization.Pixelated ~= true then
-			customization.Pixelated = nil
-		end
-		
-		if typeof(customization.Offset) ~= "Vector2" then
-			customization.Offset = defaultOffset
-		end
-		if type(customization.Rotation) ~= "number" then
-			customization.Rotation = defaultRotation
-		end
-		
-		if type(customization.StrokeSize) ~= "number" then
-			if typeof(customization.StrokeColor) == "Color3" then
-				customization.StrokeSize = defaultStrokeSize
-				if type(customization.StrokeTransparency) ~= "number" then
-					customization.StrokeTransparency = customization.Transparency
-				end
-			elseif type(customization.StrokeTransparency) == "number" then
-				customization.StrokeSize = defaultStrokeSize
-				if type(customization.StrokeColor) ~= "number" then
-					customization.StrokeColor = defaultStrokeColor
-				end
-			else
-				customization.StrokeSize = nil
-				customization.StrokeColor = nil
-				customization.StrokeTransparency = nil
-			end
-		elseif customization.StrokeSize <= 0 then
-			customization.StrokeSize = nil
-			customization.StrokeColor = nil
-			customization.StrokeTransparency = nil
-		else
-			if typeof(customization.StrokeColor) ~= "Color3" then
-				customization.StrokeColor = defaultStrokeColor
-			end
+	end
+	
+	if type(customization.LineHeight) ~= "number" then
+		customization.LineHeight = defaultLineHeight
+	elseif customization.LineHeight < 0 then
+		customization.LineHeight = 0
+	end
+	if type(customization.CharacterSpacing) ~= "number" then
+		customization.CharacterSpacing = defaultCharacterSpacing
+	elseif customization.CharacterSpacing < 0 then
+		customization.CharacterSpacing = 0
+	end
+	
+	if typeof(customization.Color) ~= "Color3" then
+		customization.Color = defaultColor
+	end
+	if type(customization.Transparency) ~= "number" then
+		customization.Transparency = defaultTransparency
+	end
+	
+	if customization.Pixelated ~= true then
+		customization.Pixelated = nil
+	end
+	
+	if typeof(customization.Offset) ~= "Vector2" then
+		customization.Offset = defaultOffset
+	end
+	if type(customization.Rotation) ~= "number" then
+		customization.Rotation = defaultRotation
+	end
+	
+	if type(customization.StrokeSize) ~= "number" then
+		if typeof(customization.StrokeColor) == "Color3" then
+			customization.StrokeSize = defaultStrokeSize
 			if type(customization.StrokeTransparency) ~= "number" then
 				customization.StrokeTransparency = customization.Transparency
 			end
-		end
-		
-		if typeof(customization.ShadowOffset) ~= "Vector2" then
-			if typeof(customization.ShadowColor) == "Color3" then
-				customization.ShadowOffset = defaultShadowOffset
-				if type(customization.ShadowTransparency) ~= "number" then
-					customization.ShadowTransparency = customization.Transparency
-				end
-			elseif type(customization.ShadowTransparency) == "number" then
-				customization.ShadowOffset = defaultShadowOffset
-				if type(customization.ShadowColor) ~= "number" then
-					customization.ShadowColor = defaultShadowColor
-				end
-			else
-				customization.ShadowOffset = nil
-				customization.ShadowColor = nil
-				customization.ShadowTransparency = nil
+		elseif type(customization.StrokeTransparency) == "number" then
+			customization.StrokeSize = defaultStrokeSize
+			if type(customization.StrokeColor) ~= "number" then
+				customization.StrokeColor = defaultStrokeColor
 			end
-		elseif customization.ShadowOffset == Vector2.zero then
-			customization.ShadowOffset = nil
-			customization.ShadowColor = nil
-			customization.ShadowTransparency = nil
 		else
-			if typeof(customization.ShadowColor) ~= "Color3" then
-				customization.ShadowColor = defaultShadowColor
-			end
+			customization.StrokeSize = nil
+			customization.StrokeColor = nil
+			customization.StrokeTransparency = nil
+		end
+	elseif customization.StrokeSize <= 0 then
+		customization.StrokeSize = nil
+		customization.StrokeColor = nil
+		customization.StrokeTransparency = nil
+	else
+		if typeof(customization.StrokeColor) ~= "Color3" then
+			customization.StrokeColor = defaultStrokeColor
+		end
+		if type(customization.StrokeTransparency) ~= "number" then
+			customization.StrokeTransparency = customization.Transparency
+		end
+	end
+	
+	if typeof(customization.ShadowOffset) ~= "Vector2" then
+		if typeof(customization.ShadowColor) == "Color3" then
+			customization.ShadowOffset = defaultShadowOffset
 			if type(customization.ShadowTransparency) ~= "number" then
 				customization.ShadowTransparency = customization.Transparency
 			end
+		elseif type(customization.ShadowTransparency) == "number" then
+			customization.ShadowOffset = defaultShadowOffset
+			if type(customization.ShadowColor) ~= "number" then
+				customization.ShadowColor = defaultShadowColor
+			end
+		else
+			customization.ShadowOffset = nil
+			customization.ShadowColor = nil
+			customization.ShadowTransparency = nil
 		end
-		
-		if truncateTypes[customization.Truncate] then
-			customization.Truncate = nil
+	elseif customization.ShadowOffset == Vector2.zero then
+		customization.ShadowOffset = nil
+		customization.ShadowColor = nil
+		customization.ShadowTransparency = nil
+	else
+		if typeof(customization.ShadowColor) ~= "Color3" then
+			customization.ShadowColor = defaultShadowColor
 		end
-		
-		if not xAlignments[customization.XAlignment] then
-			customization.XAlignment = defaultXAlignment
-		end
-		if not yAlignments[customization.YAlignment] then
-			customization.YAlignment = defaultYAlignment
-		end
-		
-		if customization.WordSorting ~= true then
-			customization.WordSorting = nil
-		end
-		if customization.LineSorting ~= true then
-			customization.LineSorting = nil
+		if type(customization.ShadowTransparency) ~= "number" then
+			customization.ShadowTransparency = customization.Transparency
 		end
 	end
+	
+	if truncateTypes[customization.Truncate] then
+		customization.Truncate = nil
+	end
+	
+	if not xAlignments[customization.XAlignment] then
+		customization.XAlignment = defaultXAlignment
+	end
+	if not yAlignments[customization.YAlignment] then
+		customization.YAlignment = defaultYAlignment
+	end
+	
+	if customization.WordSorting ~= true then
+		customization.WordSorting = nil
+	end
+	if customization.LineSorting ~= true then
+		customization.LineSorting = nil
+	end
+end
+local function create(frame, text, customization)
+	-- Cache information.
+	frameText[frame] = text
+	frameCustomizations[frame] = customization
+	-- Calculate size.
+	local size = frameSizes[frame]
+	if not size then
+		size = calculateAbsoluteSize(frame)
+		-- Temporarily cache size.
+		frameSizes[frame] = size
+		frame:GetPropertyChangedSignal("Size"):Once(function()
+			frameSizes[frame] = nil
+		end)
+	end
+	-- Render.
+	render(frame, text, customization, size)
 end
 --[[
 Creates text inside of a specified frame.
@@ -1475,63 +1483,67 @@ module.Create = function(frame: Container, text: string, customization: Customiz
 				end
 			end
 			-- Correct new (merged) customization.
-			correctCustomization(frame, text, customization)
+			correctCustomization(customization)
 		else
 			customization = frameCustomizations[frame]
 		end
 		
-		-- Size stuff and render.
-		local size = frameSizes[frame]
-		if not size then
-			size = calculateAbsoluteSize(frame)
-			frameSizes[frame] = size
-			frame:GetPropertyChangedSignal("Size"):Once(function()
-				frameSizes[frame] = nil
-			end)
-		end
-		if customization.Dynamic == nil then
-			-- Cache information.
-			frameText[frame] = text
-			frameCustomizations[frame] = customization
-			-- Render.
-			render(frame, text, customization, size)
-		else
+		-- Handle dynamic, calculate size, and render.
+		if customization.Dynamic == true then
 			handleDynamic(frame, text, customization)
+		else
+			-- Dynamic disabling.
+			if customization.Dynamic == false then
+				disableDynamic(frame, text, customization)
+			end
+			
+			-- Create.
+			create(frame, text, customization)
 		end
 	else
 		-- Ensure the customization is a table.
-		if type(customization) ~= "table" then
-			customization = {}
-		end
-		-- Remove invalid customizations.
-		for key in customization do
-			if not customizationOptions[key] then
-				customization[key] = nil
-				warn("No customization option called '"..key.."'.")
+		if type(customization) == "table" then
+			-- Remove invalid customization options.
+			for key in customization do
+				if not customizationOptions[key] then
+					customization[key] = nil
+					warn("No customization option called '"..key.."'.")
+				end
 			end
-		end
-		-- Correct invalid customizations.
-		correctCustomization(frame, text, customization)
-		
-		-- Connect clean-up to destroy.
-		frame.Destroying:Connect(function()
-			frameText[frame] = nil
-			frameCustomizations[frame] = nil
-			frameTextBounds[frame] = nil
-			frameSizes[frame] = nil
-		end)
-		
-		-- Size stuff and render.
-		local size = calculateAbsoluteSize(frame)
-		frameSizes[frame] = size
-		if customization.Dynamic == nil then
-			-- Cache information.
-			frameText[frame] = text
-			frameCustomizations[frame] = customization
-			-- Render.
-			render(frame, text, customization, size)
+			-- Correct customization.
+			correctCustomization(frame, text, customization)
+			
+			-- Handle dynamic, calculate size, and render.
+			if customization.Dynamic == true then
+				handleDynamic(frame, text, customization)
+			else
+				-- Dynamic disabling.
+				if customization.Dynamic == false then
+					disableDynamic(frame, text, customization)
+				end
+				
+				-- Create.
+				create(frame, text, customization)
+			end
 		else
-			handleDynamic(frame, text, customization)
+			-- Create with default customization.
+			create(frame, text, {
+				Font = defaultFont,
+				
+				Size = defaultSize,
+				
+				Color = defaultColor,
+				Transparency = defaultTransparency,
+				
+				Offset = defaultOffset,
+				Rotation = defaultRotation,
+				
+				LineHeight = defaultLineHeight,
+				CharacterSpacing = defaultCharacterSpacing,
+				
+				XAlignment = defaultXAlignment,
+				YAlignment = defaultYAlignment
+			})
 		end
 	end
 end
