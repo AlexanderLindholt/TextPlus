@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.10.1
+v1.10.2
 
 An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
@@ -1215,16 +1215,24 @@ local function handleDynamic(frame, text, customization)
 				end
 			end
 			
-			-- Final calculation and update the text.
 			if rootSizeX then
-				render(frame, frameText[frame], frameCustomizations[frame], Vector2.new(
+				-- Final calculation.
+				local size = Vector2.new(
 					rootSizeX*scaleX + offsetX,
 					rootSizeY*scaleY + offsetY
-				))
+				)
+				-- Cache size.
+				frameSizes[frame] = size
+				-- Render.
+				render(frame, frameText[frame], frameCustomizations[frame], size)
 			else
+				-- Remove all connections from invalid ancestor.
 				for _, connection in ancestorConnections do
 					connection:Disconnect()
 				end
+				-- Cache size.
+				frameSizes[frame] = Vector2.zero
+				-- Render.
 				render(frame, frameText[frame], frameCustomizations[frame], Vector2.zero)
 			end
 		end
