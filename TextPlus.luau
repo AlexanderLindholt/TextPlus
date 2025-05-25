@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.11.0
+v1.11.1
 
 An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
@@ -860,12 +860,14 @@ local function render(frame, text, customization, frameSize)
 	local function truncate()
 		local lineWords = lines[#lines][1]
 		
+		-- If the line is empty, we can simply put ellipsis here.
 		if #lineWords == 0 then
 			local dot = {".", dotWidth}
 			table.insert(lineWords, {dot, dot, dot})
 			return
 		end
 		
+		-- Calculate potential line width.
 		local potentialLineWidth = ellipsisWidth
 		for _, wordCharacters in lineWords do
 			if wordCharacters then
@@ -876,15 +878,18 @@ local function render(frame, text, customization, frameSize)
 			potentialLineWidth += spaceWidth
 		end
 		
+		-- Remove words one by one and check for space every time.
 		for index = #lineWords, 1, -1 do
 			local wordCharacters = lineWords[index]
 			
+			-- There may be empty words, caused by consecutive spaces. These we skip.
 			if not wordCharacters then
 				lineWords[index] = nil
 				potentialLineWidth -= spaceWidth
 				continue
 			end
 			
+			-- Check for space at the end of the word.
 			if potentialLineWidth < frameWidth then
 				local dot = {".", dotWidth}
 				table.insert(wordCharacters, dot)
@@ -893,6 +898,7 @@ local function render(frame, text, customization, frameSize)
 				return
 			end
 			
+			-- Remove characters one by one and check for space every time.
 			for index = #wordCharacters, 2, -1 do
 				potentialLineWidth -= wordCharacters[index][2]
 				wordCharacters[index] = nil
@@ -906,22 +912,25 @@ local function render(frame, text, customization, frameSize)
 				end
 			end
 			
+			-- Subtract remaining word width from potential, and remove word.
 			potentialLineWidth -= spaceWidth + wordCharacters[1][2]
 			lineWords[index] = nil
 		end
 		
+		-- If last line, then we have no option but to put the ellipsis here.
 		if #lines == 1 then
 			local dot = {".", dotWidth}
 			table.insert(lineWords, {dot, dot, dot})
 			return
 		end
 		
+		-- Remove line and repeat procedure with next line.
 		lines[#lines] = nil
 		truncate()
 	end
 	
 	for line in text:gmatch("[^\n]+") do
-		if truncateEnabled and #lines*lineHeight + size > frameHeight then
+		if truncateEnabled and #lines > 0 and #lines*lineHeight + size > frameHeight then
 			truncate()
 			truncated = true
 			break
@@ -1007,25 +1016,25 @@ local function render(frame, text, customization, frameSize)
 	local textHeight = nil
 	local lineGap = nil
 	local y = nil
-	if #lines == 1 then
-		textHeight = size
+	if yAlignment == "Top" then
+		textHeight = (#lines - 1)*lineHeight + size
 		lineGap = 0
 		y = 0
+	elseif yAlignment == "Center" then
+		textHeight = (#lines - 1)*lineHeight + size
+		lineGap = 0
+		y = math.round((frameHeight - textHeight)/2)
+	elseif yAlignment == "Bottom" then
+		textHeight = (#lines - 1)*lineHeight + size
+		lineGap = 0
+		y = frameHeight - textHeight
 	else
-		if yAlignment == "Top" then
-			textHeight = (#lines - 1)*lineHeight + size
+		-- Justified alignment.
+		if #lines == 1 then
+			textHeight = size
 			lineGap = 0
 			y = 0
-		elseif yAlignment == "Center" then
-			textHeight = (#lines - 1)*lineHeight + size
-			lineGap = 0
-			y = math.round((frameHeight - textHeight)/2)
-		elseif yAlignment == "Bottom" then
-			textHeight = (#lines - 1)*lineHeight + size
-			lineGap = 0
-			y = frameHeight - textHeight
 		else
-			-- Justified alignment.
 			textHeight = frameHeight
 			local linesAmount = #lines - 1
 			lineGap = (frameHeight - (linesAmount*lineHeight + size))/linesAmount
@@ -1037,11 +1046,11 @@ local function render(frame, text, customization, frameSize)
 		textWidth = frameWidth
 	end
 	
-	local globalWordCount = 0 -- In case only word sorting is enabled.
+	local globalWordCount = 0 -- In case specifically only word sorting is enabled.
 	local globalCharacterCount = 0 -- In case no sorting is enabled.
 	
-	for lineIndex, line in lines do
-		local words = line[1]
+	for lineIndex, lineData in lines do
+		local words = lineData[1]
 		local wordGap = nil
 		local x = nil
 		if xAlignment == "Left" then
@@ -1049,14 +1058,14 @@ local function render(frame, text, customization, frameSize)
 			x = 0
 		elseif xAlignment == "Center" then
 			wordGap = 0
-			x = math.round((frameWidth - lineWidth)/2)
+			x = math.round((frameWidth - lineData[2])/2)
 		elseif xAlignment == "Right" then
 			wordGap = 0
-			x = frameWidth - lineWidth
+			x = frameWidth - lineData[2]
 		else
 			-- Justified alignment.
 			if lineIndex ~= #lines and #words > 1 then
-				wordGap = (frameWidth - lineWidth)/(#words - 1)
+				wordGap = (frameWidth - lineData[2])/(#words - 1)
 			end
 			x = 0
 		end
@@ -1071,7 +1080,7 @@ local function render(frame, text, customization, frameSize)
 		
 		-- Create words.
 		for wordIndex, word in words do
-			if word then -- There may be empty words caused by consecutive spaces.
+			if word then -- There may be empty words, caused by consecutive spaces. These we skip.
 				local wordContainer = nil
 				if wordSorting then
 					wordContainer = Instance.new("Folder")
