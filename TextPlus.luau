@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.10.2
+v1.11.0
 
 An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
@@ -85,11 +85,9 @@ local defaultRotation = 0
 
 local defaultStrokeSize = 1
 local defaultStrokeColor = Color3.fromRGB(0, 0, 0)
-local defaultStrokeTransparency = 0
 
 local defaultShadowOffset = Vector2.new(0, 4)
 local defaultShadowColor = Color3.fromRGB(50, 50, 50)
-local defaultShadowTransparency = 0
 
 local defaultLineHeight = 1
 local defaultCharacterSpacing = 1
@@ -141,11 +139,6 @@ local scaleSizeTypes = {
 	X = true,
 	Y = true,
 	XY = true
-}
-
-local truncateTypes = {
-	Clear = true,
-	Cut = true
 }
 
 local xAlignments = {
@@ -224,7 +217,7 @@ if next(customFonts) then
 			if type(value[5]) ~= "number" then return end
 			if type(value[6]) ~= "number" then return end
 			
-			-- Precalculate normalized offset and x advance.
+			-- Precalculate normalized offset and x-advance.
 			value[4] *= invertedFontSize
 			value[5] *= invertedFontSize
 			value[6] *= invertedFontSize
@@ -287,7 +280,7 @@ if next(customFonts) then
 			table.freeze(parent[key])
 		end
 	end
-	processFonts(customFonts, "CustomFonts")
+	processFonts(customFonts, "TextPlus.CustomFonts")
 	table.freeze(customFonts)
 end
 
@@ -327,7 +320,7 @@ export type Customization = {
 	LineHeight: number?,
 	CharacterSpacing: number?,
 	
-	Truncate: "Clear" | "Cut"?,
+	Truncate: boolean?,
 	
 	XAlignment: "Left" | "Center" | "Right" | "Justified"?,
 	YAlignment: "Top" | "Center" | "Bottom" | "Justified"?,
@@ -556,19 +549,20 @@ local function render(frame, text, customization, frameSize)
 		-- Limit scaled size.
 		if size < 1 then
 			size = 1
-		elseif type(font) ~= "table" and size > 100 then
-			size = 100
 		else
 			-- Apply user's limits.
-			if customization.MinimumSize then
-				if customization.Size < customization.MinimumSize then
-					customization.Size = customization.MinimumSize
-				end
+			local minimumSize = customization.MinimumSize
+			if minimumSize and customization.Size < minimumSize then
+				customization.Size = minimumSize
 			end
-			if customization.MaximumSize then
-				if customization.Size > customization.MaximumSize then
-					customization.Size = customization.MaximumSize
-				end
+			local maximumSize = customization.MaximumSize
+			if maximumSize and customization.Size > maximumSize then
+				customization.Size = maximumSize
+			end
+			
+			-- Roblox font limit.
+			if type(font) ~= "table" and size > 100 then
+				size = 100
 			end
 		end
 	end
@@ -579,7 +573,7 @@ local function render(frame, text, customization, frameSize)
 	local pixelated = customization.Pixelated
 	
 	local offset = customization.Offset
-	offset = UDim2.fromOffset(offset.X*0.01*size, offset.Y*0.01*size) -- Convert Vector2 to UDim2, get the offset relative to size.
+	offset = UDim2.fromOffset(offset.X*0.01*size, offset.Y*0.01*size) -- Convert Vector2 to UDim2, get the offset relative to size (percentage).
 	local rotation = customization.Rotation
 	
 	local strokeSize = customization.StrokeSize
@@ -589,7 +583,7 @@ local function render(frame, text, customization, frameSize)
 	local lineHeight = customization.LineHeight*size -- Get the line height relative to size.
 	local characterSpacing = customization.CharacterSpacing
 	
-	local truncate = customization.Truncate
+	local truncateEnabled = customization.Truncate
 	
 	local xAlignment = customization.XAlignment
 	local yAlignment = customization.YAlignment
@@ -741,14 +735,15 @@ local function render(frame, text, customization, frameSize)
 			local strokeColor = customization.StrokeColor
 			local strokeTransparency = customization.StrokeTransparency
 			local invertedCharacterSpacing = 1/characterSpacing -- To avoid expensive division.
+			local fontKey = font.Family..tostring(font.Weight.Value)..tostring(font.Style.Value)
 			
 			getCharacterWidth = function(character)
-				local fontKey = character..font.Family..tostring(font.Weight.Value)..tostring(font.Style.Value)
-				local width = characterWidthCache[fontKey]
+				local characterKey = character..fontKey
+				local width = characterWidthCache[characterKey]
 				if not width then
 					textBoundsParams.Text = character
 					width = TextService:GetTextBoundsAsync(textBoundsParams).X*0.01
-					characterWidthCache[fontKey] = width
+					characterWidthCache[characterKey] = width
 				end
 				return width*size*characterSpacing
 			end
@@ -786,7 +781,7 @@ local function render(frame, text, customization, frameSize)
 						main.FontFace = font
 						main.TextXAlignment = Enum.TextXAlignment.Left
 						main.TextYAlignment = Enum.TextYAlignment.Top
-						-- Transformation.
+						-- Transform.
 						main.Size = UDim2.fromScale(1, 1)
 						main.Position = -shadowOffset -- Counteract the shadow offset.
 						-- Name and parent.
@@ -853,160 +848,188 @@ local function render(frame, text, customization, frameSize)
 	
 	local spaceWidth = getCharacterWidth(" ")
 	
+	local dotWidth = getCharacterWidth(".")
+	local ellipsisWidth = dotWidth*3
+	
 	local lines = {}
-	local currentLineWords = {}
-	local currentLineWidth = 0
+	
+	local lineWords = {}
+	local lineWidth = 0
 	
 	local truncated = false
-	
-	local rawLines = text:split("\n")
-	
-	for _, line in rawLines do
-		if truncated then break end
+	local function truncate()
+		local lineWords = lines[#lines][1]
 		
-		if line == "" then -- Empty lines come from consecutive manual line breaks.
-			if #currentLineWords > 0 then
-				-- Update text width.
-				local width = currentLineWidth
-				if width > textWidth then textWidth = width end
-				
-				-- Insert current line.
-				table.insert(lines, {currentLineWords, currentLineWidth})
-				-- Create new line.
-				currentLineWords = {}
-				currentLineWidth = 0
-			end
-			table.insert(lines, {{}, 0})
-		else
-			-- Process each word in the line.
-			local words = line:split(" ")
-			local wordWidth = 0
-			for wordIndex, word in words do
-				if truncated then break end
-				
-				local wordCharacters = {}
-				if word == "" then -- Empty words come from consecutive spaces.
-					currentLineWidth += spaceWidth
-					table.insert(currentLineWords, wordCharacters)
-				else
-					-- Insert characters and calculate word width.
-					for startIndex, endIndex in utf8.graphemes(word) do
-						local character = word:sub(startIndex, endIndex)
-						local characterWidth = getCharacterWidth(character)
-						table.insert(wordCharacters, {character, characterWidth})
-						wordWidth += characterWidth
-					end
-					
-					local potentialLineWidth = currentLineWidth + wordWidth
-					
-					if potentialLineWidth > frameWidth then
-						-- Line exceeds boundary horizontally.
-						if truncate and #lines*lineHeight + size > frameHeight then
-							-- Truncate.
-							truncated = true
-							
-							local dotWidth = getCharacterWidth(".")
-							local dot = {".", dotWidth}
-							
-							if truncate == "Clear" then
-								-- Find last word.
-								local lastLineWords = lines[#lines][1]
-								local lastWord = lastLineWords[#lastLineWords]
-								-- Clear word.
-								table.clear(lastWord)
-								-- Add ellipsis.
-								table.insert(lastWord, dot)
-								table.insert(lastWord, dot)
-								table.insert(lastWord, dot)
-							else -- "Cut" truncation.
-								-- Find last word.
-								local lastLine = lines[#lines]
-								local lastLineWords = lastLine[1]
-								local lastWord = lastLineWords[#lastLineWords]
-								-- Cut off word.
-								local ellipsisWidth = dotWidth*3
-								local lastLineWidth = lastLine[2]
-								if frameWidth - lastLineWidth < ellipsisWidth then
-									for index = #lastWord, 1, -1 do
-										lastLineWidth -= lastWord[index][2]
-										lastWord[index] = nil
-										if frameWidth - lastLineWidth >= ellipsisWidth then break end
-									end
-									lastLine[2] = lastLineWidth
-								end
-								-- Add ellipsis.
-								table.insert(lastWord, dot)
-								table.insert(lastWord, dot)
-								table.insert(lastWord, dot)
-							end
-						else
-							-- Line wrapping.
-							if wordIndex == 1 then
-								currentLineWidth = potentialLineWidth
-								table.insert(currentLineWords, wordCharacters)
-							else
-								-- Update text width.
-								local width = currentLineWidth
-								if width > textWidth then textWidth = width end
-								
-								-- Insert current line.
-								table.insert(lines, {currentLineWords, currentLineWidth})
-								-- Create new line.
-								currentLineWords = {wordCharacters}
-								currentLineWidth = wordWidth
-								
-								-- Update potential width.
-								potentialLineWidth = wordWidth
-							end
-						end
-					else
-						currentLineWidth = potentialLineWidth
-						table.insert(currentLineWords, wordCharacters)
-					end
+		if #lineWords == 0 then
+			local dot = {".", dotWidth}
+			table.insert(lineWords, {dot, dot, dot})
+			return
+		end
+		
+		local potentialLineWidth = ellipsisWidth
+		for _, wordCharacters in lineWords do
+			if wordCharacters then
+				for _, characterData in wordCharacters do
+					potentialLineWidth += characterData[2]
 				end
-				
-				-- Start the next word's width at a space's width.
-				wordWidth = spaceWidth
+			end
+			potentialLineWidth += spaceWidth
+		end
+		
+		for index = #lineWords, 1, -1 do
+			local wordCharacters = lineWords[index]
+			
+			if not wordCharacters then
+				lineWords[index] = nil
+				potentialLineWidth -= spaceWidth
+				continue
 			end
 			
-			-- Line break.
-			if #currentLineWords > 0 and not truncated then
-				-- Update text width.
-				local width = currentLineWidth
-				if width > textWidth then textWidth = width end
-				
-				-- Insert current line.
-				table.insert(lines, {currentLineWords, currentLineWidth})
-				-- Create new line.
-				currentLineWords = {}
-				currentLineWidth = 0
+			if potentialLineWidth < frameWidth then
+				local dot = {".", dotWidth}
+				table.insert(wordCharacters, dot)
+				table.insert(wordCharacters, dot)
+				table.insert(wordCharacters, dot)
+				return
 			end
+			
+			for index = #wordCharacters, 2, -1 do
+				potentialLineWidth -= wordCharacters[index][2]
+				wordCharacters[index] = nil
+				
+				if potentialLineWidth < frameWidth then
+					local dot = {".", dotWidth}
+					table.insert(wordCharacters, dot)
+					table.insert(wordCharacters, dot)
+					table.insert(wordCharacters, dot)
+					return
+				end
+			end
+			
+			potentialLineWidth -= spaceWidth + wordCharacters[1][2]
+			lineWords[index] = nil
+		end
+		
+		if #lines == 1 then
+			local dot = {".", dotWidth}
+			table.insert(lineWords, {dot, dot, dot})
+			return
+		end
+		
+		lines[#lines] = nil
+		truncate()
+	end
+	
+	for line in text:gmatch("[^\n]+") do
+		if truncateEnabled and #lines*lineHeight + size > frameHeight then
+			truncate()
+			truncated = true
+			break
+		end
+		
+		if line == "" then
+			if #lineWords > 0 then
+				-- Update text width.
+				if lineWidth > textWidth then
+					textWidth = lineWidth
+				end
+				-- Add current line.
+				table.insert(lines, {lineWords, lineWidth})
+			end
+			-- Add empty line.
+			table.insert(lines, {{}, 0})
+			-- Reset line data.
+			lineWidth = 0
+			lineWords = {}
+		else
+			for word in (line.." "):gmatch("([^ ]*) ") do
+				if word == "" then
+					table.insert(lineWords, false)
+					lineWidth += spaceWidth
+				else
+					local wordWidth = spaceWidth
+					local wordCharacters = {}
+					
+					for character in word:gmatch(utf8.charpattern) do
+						local characterWidth = getCharacterWidth(character)
+						wordWidth += characterWidth
+						table.insert(wordCharacters, {character, characterWidth})
+					end
+					
+					if lineWidth + wordWidth > frameWidth then
+						-- Update text width.
+						if lineWidth > textWidth then
+							textWidth = lineWidth
+						end
+						
+						-- Truncate next line if necessary.
+						if truncateEnabled and (#lines + 1)*lineHeight + size > frameHeight then
+							-- Add word to line.
+							table.insert(lineWords, wordCharacters)
+							-- Add current line.
+							table.insert(lines, {lineWords, lineWidth})
+							
+							-- Truncate.
+							truncate()
+							truncated = true
+							break
+						else
+							-- Add current line.
+							table.insert(lines, {lineWords, lineWidth})
+							
+							-- Initalize next line with the word that exceeded the boundary.
+							lineWords = {wordCharacters}
+							lineWidth = wordWidth
+						end
+					else
+						-- Add word to line.
+						table.insert(lineWords, wordCharacters)
+						lineWidth += wordWidth
+					end
+				end
+			end
+			
+			if truncated then break end
+			
+			-- Update text width.
+			if lineWidth > textWidth then
+				textWidth = lineWidth
+			end
+			-- Add current line.
+			table.insert(lines, {lineWords, lineWidth})
+			-- Reset line data.
+			lineWords = {}
+			lineWidth = 0
 		end
 	end
 	
 	-- Calculate final information and render.
 	local textHeight = nil
-	local lineGap = 0
+	local lineGap = nil
 	local y = nil
-	if yAlignment == "Top" then
-		textHeight = (#lines - 1)*lineHeight + size
+	if #lines == 1 then
+		textHeight = size
+		lineGap = 0
 		y = 0
-	elseif yAlignment == "Center" then
-		textHeight = (#lines - 1)*lineHeight + size
-		y = math.round((frameHeight - textHeight)/2)
-	elseif yAlignment == "Bottom" then
-		textHeight = (#lines - 1)*lineHeight + size
-		y = frameHeight - textHeight
 	else
-		-- Justified alignment.
-		y = 0
-		if #lines > 1 then
-			local frameHeight = frameHeight
+		if yAlignment == "Top" then
+			textHeight = (#lines - 1)*lineHeight + size
+			lineGap = 0
+			y = 0
+		elseif yAlignment == "Center" then
+			textHeight = (#lines - 1)*lineHeight + size
+			lineGap = 0
+			y = math.round((frameHeight - textHeight)/2)
+		elseif yAlignment == "Bottom" then
+			textHeight = (#lines - 1)*lineHeight + size
+			lineGap = 0
+			y = frameHeight - textHeight
+		else
+			-- Justified alignment.
+			textHeight = frameHeight
 			local linesAmount = #lines - 1
 			lineGap = (frameHeight - (linesAmount*lineHeight + size))/linesAmount
-			textHeight = frameHeight
-		else
-			textHeight = size
+			y = 0
 		end
 	end
 	
@@ -1019,21 +1042,23 @@ local function render(frame, text, customization, frameSize)
 	
 	for lineIndex, line in lines do
 		local words = line[1]
-		local lineWidth = line[2]
-		local wordGap = 0
+		local wordGap = nil
 		local x = nil
 		if xAlignment == "Left" then
+			wordGap = 0
 			x = 0
 		elseif xAlignment == "Center" then
+			wordGap = 0
 			x = math.round((frameWidth - lineWidth)/2)
 		elseif xAlignment == "Right" then
+			wordGap = 0
 			x = frameWidth - lineWidth
 		else
 			-- Justified alignment.
-			x = 0
 			if lineIndex ~= #lines and #words > 1 then
 				wordGap = (frameWidth - lineWidth)/(#words - 1)
 			end
+			x = 0
 		end
 		
 		-- Line sorting.
@@ -1046,39 +1071,41 @@ local function render(frame, text, customization, frameSize)
 		
 		-- Create words.
 		for wordIndex, word in words do
-			local wordContainer = lineContainer
-			
-			-- Word sorting.
-			if wordSorting then
-				wordContainer = Instance.new("Folder")
-				-- Numerical naming.
-				if lineSorting then
-					wordContainer.Name = tostring(wordIndex)
+			if word then -- There may be empty words caused by consecutive spaces.
+				local wordContainer = nil
+				if wordSorting then
+					wordContainer = Instance.new("Folder")
+					-- Numerical naming.
+					if lineSorting then
+						wordContainer.Name = tostring(wordIndex)
+					else
+						globalWordCount += 1
+						wordContainer.Name = tostring(globalWordCount)
+					end
+					-- Parent.
+					wordContainer.Parent = lineContainer
 				else
-					globalWordCount += 1
-					wordContainer.Name = tostring(globalWordCount)
+					wordContainer = lineContainer
 				end
-				-- Parent.
-				wordContainer.Parent = lineContainer
-			end
-			
-			-- Create characters.
-			for characterIndex, character in word do
-				local width = character[2]
 				
-				local element = createCharacter(character[1], UDim2.fromOffset(x, y), width)
-				-- Numerical naming.
-				if not lineSorting and not wordSorting then
-					globalCharacterCount += 1
-					element.Name = tostring(globalCharacterCount)
-				else
-					element.Name = tostring(characterIndex)
+				-- Create characters.
+				for characterIndex, characterData in word do
+					local width = characterData[2]
+					
+					local instance = createCharacter(characterData[1], UDim2.fromOffset(x, y), width)
+					-- Numerical naming.
+					if not lineSorting and not wordSorting then
+						globalCharacterCount += 1
+						instance.Name = tostring(globalCharacterCount)
+					else
+						instance.Name = tostring(characterIndex)
+					end
+					-- Parent.
+					instance.Parent = wordContainer
+					
+					-- Add space before the next character.
+					x += width
 				end
-				-- Parent.
-				element.Parent = wordContainer
-				
-				-- Add space before the next character.
-				x += width
 			end
 			
 			-- Add space before the next word.
@@ -1170,7 +1197,7 @@ local function handleDynamic(frame, text, customization)
 					-- Ensure no saved surface size.
 					frameSurfaceGuiSizes[frame] = nil
 					
-					-- Connect to size changed.
+					-- Listen for size change.
 					table.insert(ancestorConnections, camera:GetPropertyChangedSignal("ViewportSize"):Connect(update))
 					
 					-- Stop loop.
@@ -1201,6 +1228,8 @@ local function handleDynamic(frame, text, customization)
 					end
 					frameSurfaceGuiSizes[frame] = Vector2.new(rootSizeX, rootSizeY)
 					
+					-- Listen to changes.
+					table.insert(ancestorConnections, instance:GetPropertyChangedSignal("Face"):Connect(update))
 					table.insert(ancestorConnections, adornee:GetPropertyChangedSignal("Size"):Connect(update))
 					
 					-- Stop loop.
@@ -1227,8 +1256,9 @@ local function handleDynamic(frame, text, customization)
 				render(frame, frameText[frame], frameCustomizations[frame], size)
 			else
 				-- Remove all connections from invalid ancestor.
-				for _, connection in ancestorConnections do
+				for index, connection in ancestorConnections do
 					connection:Disconnect()
+					ancestorConnections[index] = nil
 				end
 				-- Cache size.
 				frameSizes[frame] = Vector2.zero
@@ -1241,8 +1271,9 @@ local function handleDynamic(frame, text, customization)
 		connections = {
 			frame:GetPropertyChangedSignal("Size"):Connect(update),
 			frame.AncestryChanged:Connect(function()
-				for _, connection in ancestorConnections do
+				for index, connection in ancestorConnections do
 					connection:Disconnect()
+					ancestorConnections[index] = nil
 				end
 				fullUpdate()
 			end),
@@ -1290,14 +1321,16 @@ local function correctCustomization(customization)
 		end
 	else
 		-- Scale-size enabled.
-		if type(customization.MinimumSize) ~= "number" then
+		local minimumSize = customization.MinimumSize
+		if type(minimumSize) ~= "number" then
 			customization.MinimumSize = nil
-		elseif customization.MinimumSize < 1 then
+		elseif minimumSize < 1 then
 			customization.MinimumSize = 1
 		end
-		if type(customization.MaximumSize) ~= "number" then
+		local maximumSize = customization.MaximumSize
+		if type(maximumSize) ~= "number" then
 			customization.MaximumSize = nil
-		elseif customization.MaximumSize < 1 then
+		elseif maximumSize < 1 then
 			customization.MaximumSize = 1
 		end
 		
@@ -1306,7 +1339,8 @@ local function correctCustomization(customization)
 		end
 	end
 	
-	if customization.Font == nil then
+	local font = customization.Font
+	if font == nil then
 		customization.Font = defaultFont
 		textBoundsParams.Font = defaultFont
 		
@@ -1314,7 +1348,7 @@ local function correctCustomization(customization)
 		if customization.Size > 100 then
 			customization.Size = 100
 		end
-	elseif typeof(customization.Font) == "Font" then -- Roblox font.
+	elseif typeof(font) == "Font" then -- Roblox font.
 		-- Verify font.
 		textBoundsParams.Font = customization.Font
 		textBoundsParams.Text = " "
@@ -1331,7 +1365,7 @@ local function correctCustomization(customization)
 		end
 	else
 		-- Custom font.
-		if not rawCustomFonts[customization.Font] then
+		if not rawCustomFonts[font] then
 			warn("Invalid font. Using default.")
 			customization.Font = defaultFont
 			textBoundsParams.Font = defaultFont
@@ -1343,14 +1377,16 @@ local function correctCustomization(customization)
 		end
 	end
 	
-	if type(customization.LineHeight) ~= "number" then
+	local lineHeight = customization.LineHeight
+	if type(lineHeight) ~= "number" then
 		customization.LineHeight = defaultLineHeight
-	elseif customization.LineHeight < 0 then
+	elseif lineHeight < 0 then
 		customization.LineHeight = 0
 	end
-	if type(customization.CharacterSpacing) ~= "number" then
+	local characterSpacing = customization.CharacterSpacing
+	if type(characterSpacing) ~= "number" then
 		customization.CharacterSpacing = defaultCharacterSpacing
-	elseif customization.CharacterSpacing < 0 then
+	elseif characterSpacing < 0 then
 		customization.CharacterSpacing = 0
 	end
 	
@@ -1372,15 +1408,18 @@ local function correctCustomization(customization)
 		customization.Rotation = defaultRotation
 	end
 	
-	if type(customization.StrokeSize) ~= "number" then
-		if typeof(customization.StrokeColor) == "Color3" then
+	local strokeSize = customization.StrokeSize
+	local strokeColor = customization.StrokeColor
+	local strokeTransparency = customization.StrokeTransparency
+	if type(strokeSize) ~= "number" then
+		if typeof(strokeColor) == "Color3" then
 			customization.StrokeSize = defaultStrokeSize
-			if type(customization.StrokeTransparency) ~= "number" then
+			if type(strokeTransparency) ~= "number" then
 				customization.StrokeTransparency = customization.Transparency
 			end
-		elseif type(customization.StrokeTransparency) == "number" then
+		elseif type(strokeTransparency) == "number" then
 			customization.StrokeSize = defaultStrokeSize
-			if type(customization.StrokeColor) ~= "number" then
+			if type(strokeColor) ~= "number" then
 				customization.StrokeColor = defaultStrokeColor
 			end
 		else
@@ -1388,28 +1427,31 @@ local function correctCustomization(customization)
 			customization.StrokeColor = nil
 			customization.StrokeTransparency = nil
 		end
-	elseif customization.StrokeSize <= 0 then
+	elseif strokeSize <= 0 then
 		customization.StrokeSize = nil
 		customization.StrokeColor = nil
 		customization.StrokeTransparency = nil
 	else
-		if typeof(customization.StrokeColor) ~= "Color3" then
+		if typeof(strokeColor) ~= "Color3" then
 			customization.StrokeColor = defaultStrokeColor
 		end
-		if type(customization.StrokeTransparency) ~= "number" then
+		if type(strokeTransparency) ~= "number" then
 			customization.StrokeTransparency = customization.Transparency
 		end
 	end
 	
-	if typeof(customization.ShadowOffset) ~= "Vector2" then
-		if typeof(customization.ShadowColor) == "Color3" then
-			customization.ShadowOffset = defaultShadowOffset
-			if type(customization.ShadowTransparency) ~= "number" then
+	local shadowOffset = customization.ShadowOffset
+	local shadowColor = customization.ShadowColor
+	local shadowTransparency = customization.ShadowTransparency
+	if typeof(shadowOffset) ~= "Vector2" then
+		if typeof(shadowColor) == "Color3" then
+			shadowOffset = defaultShadowOffset
+			if type(shadowTransparency) ~= "number" then
 				customization.ShadowTransparency = customization.Transparency
 			end
-		elseif type(customization.ShadowTransparency) == "number" then
+		elseif type(shadowTransparency) == "number" then
 			customization.ShadowOffset = defaultShadowOffset
-			if type(customization.ShadowColor) ~= "number" then
+			if type(shadowColor) ~= "number" then
 				customization.ShadowColor = defaultShadowColor
 			end
 		else
@@ -1417,20 +1459,20 @@ local function correctCustomization(customization)
 			customization.ShadowColor = nil
 			customization.ShadowTransparency = nil
 		end
-	elseif customization.ShadowOffset == Vector2.zero then
+	elseif shadowOffset == Vector2.zero then
 		customization.ShadowOffset = nil
 		customization.ShadowColor = nil
 		customization.ShadowTransparency = nil
 	else
-		if typeof(customization.ShadowColor) ~= "Color3" then
+		if typeof(shadowColor) ~= "Color3" then
 			customization.ShadowColor = defaultShadowColor
 		end
-		if type(customization.ShadowTransparency) ~= "number" then
+		if type(shadowTransparency) ~= "number" then
 			customization.ShadowTransparency = customization.Transparency
 		end
 	end
 	
-	if not truncateTypes[customization.Truncate] then
+	if customization.Truncate ~= true then
 		customization.Truncate = nil
 	end
 	
@@ -1474,7 +1516,7 @@ If text is already present, it will overwrite text and merge customizations.
 module.Create = function(frame: Container, text: string, customization: Customization?)
 	-- Argument errors.
 	if not text then error("No text provided.", 2) end
-	if text == "" then error("Use 'frame:ClearAllChildren()' instead, if you want to clear the text.", 2) end
+	if text == "" then error("If you want to clear the text, use 'frame:ClearAllChildren()' instead.", 2) end
 	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame provided.", 2) end
 	
 	-- Handle customization.
@@ -1485,7 +1527,11 @@ module.Create = function(frame: Container, text: string, customization: Customiz
 			customization = frameCustomizations[frame]
 			for key, value in newCustomization do
 				if customizationOptions[key] then
-					customization[key] = value
+					if not value then
+						customization[key] = nil
+					else
+						customization[key] = value
+					end
 				else
 					warn("No customization option called '"..key.."'.")
 				end
@@ -1551,6 +1597,8 @@ module.Create = function(frame: Container, text: string, customization: Customiz
 				
 				XAlignment = defaultXAlignment,
 				YAlignment = defaultYAlignment
+				
+				-- We simply don't include optional customizations.
 			})
 		end
 	end
