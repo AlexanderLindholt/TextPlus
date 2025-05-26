@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.11.1
+v1.12.0
 
 An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
@@ -60,9 +60,12 @@ SOFTWARE.
 
 ]]--
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TextService = game:GetService("TextService")
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
+
+local SignalPlus = require(ReplicatedStorage.SignalPlus)
 
 local customFonts = require(script.CustomFonts)
 
@@ -72,7 +75,7 @@ local missingCharacter = "rbxassetid://75989824347198" -- Is used when a charact
 
 local guiInset = GuiService:GetGuiInset()
 
--- Defaults.
+-- Customization defaults.
 local defaultFont = Font.new("rbxasset://fonts/families/SourceSansPro.json")
 
 local defaultSize = 14
@@ -161,13 +164,14 @@ local frameTextBounds = {}
 local frameDynamicConnections = {}
 local frameSizes = {}
 local frameSurfaceGuiSizes = {}
+local frameUpdateSignals = {}
 
 -- Roblox built-in text rendering stuff.
 local textBoundsParams = Instance.new("GetTextBoundsParams")
 textBoundsParams.Size = 100 -- Size limit for Roblox built-in text rendering.
 local characterWidthCache = {}
 
--- Create a raw custom fonts table.
+-- Create raw custom fonts table.
 local rawCustomFonts = {}
 
 -- Verify and preload custom fonts if any.
@@ -416,6 +420,17 @@ module.GetCharacters = function(frame: Container): {TextLabel | ImageLabel}
 			end
 		end
 	end)
+end
+
+--[[
+Returns the update signal for the specified frame.
+]]--
+module.GetUpdateSignal = function(frame: Container, signal: string)
+	-- Argument errors.
+	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame provided.", 2) end
+	
+	-- Get and return signal.
+	return frameUpdateSignals[frame]
 end
 
 local function calculateAbsoluteSize(frame)
@@ -858,10 +873,13 @@ local function render(frame, text, customization, frameSize)
 	
 	local truncated = false
 	local function truncate()
-		local lineWords = lines[#lines][1]
+		local line = lines[#lines]
+		local lineWords = line[1]
 		
 		-- If the line is empty, we can simply put ellipsis here.
 		if #lineWords == 0 then
+			line[2] = ellipsisWidth
+			
 			local dot = {".", dotWidth}
 			table.insert(lineWords, {dot, dot, dot})
 			return
@@ -891,6 +909,10 @@ local function render(frame, text, customization, frameSize)
 			
 			-- Check for space at the end of the word.
 			if potentialLineWidth < frameWidth then
+				-- Update line width cache.
+				line[2] = potentialLineWidth
+				
+				-- Add ellipsis and exit.
 				local dot = {".", dotWidth}
 				table.insert(wordCharacters, dot)
 				table.insert(wordCharacters, dot)
@@ -904,6 +926,10 @@ local function render(frame, text, customization, frameSize)
 				wordCharacters[index] = nil
 				
 				if potentialLineWidth < frameWidth then
+					-- Update line width cache.
+					line[2] = potentialLineWidth
+					
+					-- Add ellipsis and exit.
 					local dot = {".", dotWidth}
 					table.insert(wordCharacters, dot)
 					table.insert(wordCharacters, dot)
@@ -919,23 +945,27 @@ local function render(frame, text, customization, frameSize)
 		
 		-- If last line, then we have no option but to put the ellipsis here.
 		if #lines == 1 then
+			line[2] = ellipsisWidth
+			
 			local dot = {".", dotWidth}
 			table.insert(lineWords, {dot, dot, dot})
 			return
 		end
 		
-		-- Remove line and repeat procedure with next line.
+		-- Remove this line, and repeat truncation procedure on next line.
 		lines[#lines] = nil
 		truncate()
 	end
 	
 	for line in text:gmatch("[^\n]+") do
+		-- Truncate line if necessary.
 		if truncateEnabled and #lines > 0 and #lines*lineHeight + size > frameHeight then
 			truncate()
 			truncated = true
 			break
 		end
 		
+		-- Process line.
 		if line == "" then
 			if #lineWords > 0 then
 				-- Update text width.
@@ -1064,8 +1094,10 @@ local function render(frame, text, customization, frameSize)
 			x = frameWidth - lineData[2]
 		else
 			-- Justified alignment.
-			if lineIndex ~= #lines and #words > 1 then
+			if #words > 1 then
 				wordGap = (frameWidth - lineData[2])/(#words - 1)
+			else
+				wordGap = 0
 			end
 			x = 0
 		end
@@ -1127,6 +1159,9 @@ local function render(frame, text, customization, frameSize)
 	
 	-- Save text bounds.
 	frameTextBounds[frame] = Vector2.new(textWidth, textHeight)
+	
+	-- Fire update signal.
+	frameUpdateSignals[frame]:Fire()
 end
 local function handleDynamic(frame, text, customization)
 	if frameDynamicConnections[frame] then
@@ -1564,6 +1599,9 @@ module.Create = function(frame: Container, text: string, customization: Customiz
 			create(frame, text, customization)
 		end
 	else
+		-- Create and save update signal.
+		frameUpdateSignals[frame] = SignalPlus()
+		
 		-- Ensure the customization is a table.
 		if type(customization) == "table" then
 			-- Remove invalid customization options.
