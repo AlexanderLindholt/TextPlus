@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.12.0
+v1.13.0
 
 An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
@@ -60,14 +60,18 @@ SOFTWARE.
 
 ]]--
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CollectionService = game:GetService("CollectionService")
 local TextService = game:GetService("TextService")
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 
-local SignalPlus = require(ReplicatedStorage.SignalPlus)
+local SignalPlus = CollectionService:GetTagged("SignalPlus")[1]
+if not SignalPlus then error("Could not find 'SignalPlus' module.") end
+SignalPlus = require(SignalPlus)
 
-local customFonts = require(script.CustomFonts)
+local userFonts = CollectionService:GetTagged("Fonts")[1]
+if not userFonts then error("Could not find 'Fonts' module.") end
+userFonts = require(userFonts)
 
 local camera = workspace.CurrentCamera
 
@@ -86,7 +90,7 @@ local defaultTransparency = 0
 local defaultOffset = Vector2.zero
 local defaultRotation = 0
 
-local defaultStrokeSize = 1
+local defaultStrokeSize = 10
 local defaultStrokeColor = Color3.fromRGB(0, 0, 0)
 
 local defaultShadowOffset = Vector2.new(0, 4)
@@ -175,7 +179,7 @@ local characterWidthCache = {}
 local rawCustomFonts = {}
 
 -- Verify and preload custom fonts if any.
-if next(customFonts) then
+if userFonts and next(userFonts) then
 	local player = Players.LocalPlayer
 	local load = nil
 	if player then -- If running on client.
@@ -284,8 +288,8 @@ if next(customFonts) then
 			table.freeze(parent[key])
 		end
 	end
-	processFonts(customFonts, "TextPlus.CustomFonts")
-	table.freeze(customFonts)
+	processFonts(userFonts, "TextPlus.CustomFonts")
+	table.freeze(userFonts)
 end
 
 -- Types.
@@ -339,7 +343,7 @@ type Container = Frame | ScrollingFrame | CanvasGroup
 -- Module.
 local module = {}
 
-module.CustomFonts = customFonts -- Set quick access to custom fonts.
+module.Fonts = userFonts -- Set quick access to custom fonts.
 
 --[[
 Gets the raw text string for a frame.
@@ -502,19 +506,26 @@ local function calculateAbsoluteSize(frame)
 			
 			-- Calculate and save surface size.
 			local face = instance.Face
-			local pixelsPerStud = instance.PixelsPerStud
-			local partSize = adornee.Size
-			if face == Enum.NormalId.Front or face == Enum.NormalId.Back then
-				rootSizeX = partSize.X*pixelsPerStud
-				rootSizeY = partSize.Y*pixelsPerStud
-			elseif face == Enum.NormalId.Left or face == Enum.NormalId.Right then
-				rootSizeX = partSize.Z*pixelsPerStud
-				rootSizeY = partSize.Y*pixelsPerStud
+			if instance.SizingMode == Enum.SurfaceGuiSizingMode.PixelsPerStud then
+				local pixelsPerStud = instance.PixelsPerStud
+				local partSize = adornee.Size
+				if face == Enum.NormalId.Front or face == Enum.NormalId.Back then
+					rootSizeX = partSize.X*pixelsPerStud
+					rootSizeY = partSize.Y*pixelsPerStud
+				elseif face == Enum.NormalId.Left or face == Enum.NormalId.Right then
+					rootSizeX = partSize.Z*pixelsPerStud
+					rootSizeY = partSize.Y*pixelsPerStud
+				else
+					-- Top or bottom face.
+					rootSizeX = partSize.X*pixelsPerStud
+					rootSizeY = partSize.Z*pixelsPerStud
+				end
 			else
-				-- Top or bottom face.
-				rootSizeX = partSize.X*pixelsPerStud
-				rootSizeY = partSize.Z*pixelsPerStud
+				local canvasSize = instance.CanvasSize
+				rootSizeX = canvasSize.X
+				rootSizeY = canvasSize.Y
 			end
+			
 			frameSurfaceGuiSizes[frame] = Vector2.new(rootSizeX, rootSizeY)
 			
 			-- Stop loop.
@@ -591,7 +602,7 @@ local function render(frame, text, customization, frameSize)
 	offset = UDim2.fromOffset(offset.X*0.01*size, offset.Y*0.01*size) -- Convert Vector2 to UDim2, get the offset relative to size (percentage).
 	local rotation = customization.Rotation
 	
-	local strokeSize = customization.StrokeSize
+	local strokeSize = customization.StrokeSize*0.01*size
 	
 	local shadowOffset = customization.ShadowOffset
 	
@@ -635,7 +646,7 @@ local function render(frame, text, customization, frameSize)
 			end
 			if shadowOffset then
 				-- Shadow.
-				shadowOffset = UDim2.fromOffset(shadowOffset.X, shadowOffset.Y) -- Convert Vector2 to UDim2.
+				shadowOffset = UDim2.fromOffset(shadowOffset.X*0.01*size, shadowOffset.Y*0.01*size) -- Convert Vector2 to UDim2.
 				local shadowColor = customization.ShadowColor
 				local shadowTransparency = customization.ShadowTransparency
 				
@@ -764,7 +775,7 @@ local function render(frame, text, customization, frameSize)
 			end
 			if shadowOffset then
 				-- Shadow.
-				shadowOffset = UDim2.fromOffset(shadowOffset.X, shadowOffset.Y) -- Convert Vector2 to UDim2.
+				shadowOffset = UDim2.fromOffset(shadowOffset.X*0.01*size, shadowOffset.Y*0.01*size) -- Convert Vector2 to UDim2.
 				local shadowColor = customization.ShadowColor
 				local shadowTransparency = customization.ShadowTransparency
 				
@@ -1257,24 +1268,63 @@ local function handleDynamic(frame, text, customization)
 					
 					-- Calculate and save surface size.
 					local face = instance.Face
-					local pixelsPerStud = instance.PixelsPerStud
-					local partSize = adornee.Size
-					if face == Enum.NormalId.Front or face == Enum.NormalId.Back then
-						rootSizeX = partSize.X*pixelsPerStud
-						rootSizeY = partSize.Y*pixelsPerStud
-					elseif face == Enum.NormalId.Left or face == Enum.NormalId.Right then
-						rootSizeX = partSize.Z*pixelsPerStud
-						rootSizeY = partSize.Y*pixelsPerStud
+					if instance.SizingMode == Enum.SurfaceGuiSizingMode.PixelsPerStud then
+						local pixelsPerStud = instance.PixelsPerStud
+						local partSize = adornee.Size
+						if face == Enum.NormalId.Front or face == Enum.NormalId.Back then
+							rootSizeX = partSize.X*pixelsPerStud
+							rootSizeY = partSize.Y*pixelsPerStud
+						elseif face == Enum.NormalId.Left or face == Enum.NormalId.Right then
+							rootSizeX = partSize.Z*pixelsPerStud
+							rootSizeY = partSize.Y*pixelsPerStud
+						else
+							-- Top or bottom face.
+							rootSizeX = partSize.X*pixelsPerStud
+							rootSizeY = partSize.Z*pixelsPerStud
+						end
 					else
-						-- Top or bottom face.
-						rootSizeX = partSize.X*pixelsPerStud
-						rootSizeY = partSize.Z*pixelsPerStud
+						local canvasSize = instance.CanvasSize
+						rootSizeX = canvasSize.X
+						rootSizeY = canvasSize.Y
 					end
+					
 					frameSurfaceGuiSizes[frame] = Vector2.new(rootSizeX, rootSizeY)
 					
 					-- Listen to changes.
+					do
+						local connection = nil
+						if instance.SizingMode == Enum.SurfaceGuiSizingMode.PixelsPerStud then
+							connection = instance:GetPropertyChangedSignal("PixelsPerStud"):Connect(update)
+						else
+							connection = instance:GetPropertyChangedSignal("CanvasSize"):Connect(update)
+						end
+						ancestorConnections[0] = connection
+						table.insert(ancestorConnections, instance:GetPropertyChangedSignal("SizingMode"):Connect(function()
+							connection:Disconnect()
+							if instance.SizingMode == Enum.SurfaceGuiSizingMode.PixelsPerStud then
+								connection = instance:GetPropertyChangedSignal("PixelsPerStud"):Connect(update)
+							else
+								connection = instance:GetPropertyChangedSignal("CanvasSize"):Connect(update)
+							end
+							ancestorConnections[0] = connection
+							update()
+						end))
+					end
+					do
+						local connection = adornee:GetPropertyChangedSignal("Size"):Connect(update)
+						table.insert(ancestorConnections, instance:GetPropertyChangedSignal("Adornee"):Connect(function()
+							connection:Disconnect()
+							adornee = instance.Adornee
+							if adornee then
+								connection = instance.Adornee:GetPropertyChangedSignal("Size"):Connect(update) then
+							else
+								connection = nil
+							end
+							ancestorConnections[-1] = connection
+							update()
+						end))
+					end
 					table.insert(ancestorConnections, instance:GetPropertyChangedSignal("Face"):Connect(update))
-					table.insert(ancestorConnections, adornee:GetPropertyChangedSignal("Size"):Connect(update))
 					
 					-- Stop loop.
 					break
@@ -1445,8 +1495,16 @@ local function correctCustomization(customization)
 		customization.Pixelated = nil
 	end
 	
-	if typeof(customization.Offset) ~= "Vector2" then
+	local offset = customization.Offset
+	if typeof(offset) ~= "Vector2" then
 		customization.Offset = defaultOffset
+	else
+		if offset.X < 1 then
+			customization.ShadowOffset = 1
+		end
+		if offset.Y < 1 then
+			customization.ShadowOffset = 1
+		end
 	end
 	if type(customization.Rotation) ~= "number" then
 		customization.Rotation = defaultRotation
@@ -1471,11 +1529,10 @@ local function correctCustomization(customization)
 			customization.StrokeColor = nil
 			customization.StrokeTransparency = nil
 		end
-	elseif strokeSize <= 0 then
-		customization.StrokeSize = nil
-		customization.StrokeColor = nil
-		customization.StrokeTransparency = nil
 	else
+		if strokeSize < 1 then
+			customization.StrokeSize = 1
+		end
 		if typeof(strokeColor) ~= "Color3" then
 			customization.StrokeColor = defaultStrokeColor
 		end
@@ -1503,11 +1560,13 @@ local function correctCustomization(customization)
 			customization.ShadowColor = nil
 			customization.ShadowTransparency = nil
 		end
-	elseif shadowOffset == Vector2.zero then
-		customization.ShadowOffset = nil
-		customization.ShadowColor = nil
-		customization.ShadowTransparency = nil
 	else
+		if shadowOffset.X < 1 then
+			customization.ShadowOffset = 1
+		end
+		if shadowOffset.Y < 1 then
+			customization.ShadowOffset = 1
+		end
 		if typeof(shadowColor) ~= "Color3" then
 			customization.ShadowColor = defaultShadowColor
 		end
