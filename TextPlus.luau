@@ -1321,7 +1321,7 @@ local function handleDynamic(frame, text, customization)
 							connection:Disconnect()
 							adornee = instance.Adornee
 							if adornee then
-								connection = instance.Adornee:GetPropertyChangedSignal("Size"):Connect(update) then
+								connection = instance.Adornee:GetPropertyChangedSignal("Size"):Connect(update)
 							else
 								connection = nil
 							end
