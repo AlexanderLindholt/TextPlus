@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.13.0
+v1.13.1
 
 An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
@@ -602,8 +602,6 @@ local function render(frame, text, customization, frameSize)
 	offset = UDim2.fromOffset(offset.X*0.01*size, offset.Y*0.01*size) -- Convert Vector2 to UDim2, get the offset relative to size (percentage).
 	local rotation = customization.Rotation
 	
-	local strokeSize = customization.StrokeSize*0.01*size
-	
 	local shadowOffset = customization.ShadowOffset
 	
 	local lineHeight = customization.LineHeight*size -- Get the line height relative to size.
@@ -758,8 +756,15 @@ local function render(frame, text, customization, frameSize)
 			end
 		else
 			-- Roblox font.
-			local strokeColor = customization.StrokeColor
-			local strokeTransparency = customization.StrokeTransparency
+			local strokeSize = customization.StrokeSize
+			local strokeColor = nil
+			local strokeTransparency = nil
+			if strokeSize then
+				strokeSize = strokeSize*0.01*size
+				strokeColor = customization.StrokeColor
+				strokeTransparency = customization.StrokeTransparency
+			end
+			
 			local invertedCharacterSpacing = 1/characterSpacing -- To avoid expensive division.
 			local fontKey = font.Family..tostring(font.Weight.Value)..tostring(font.Style.Value)
 			
