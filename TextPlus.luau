@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.13.1
+v1.13.2
 
 An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
@@ -1317,6 +1317,7 @@ local function handleDynamic(frame, text, customization)
 					end
 					do
 						local connection = adornee:GetPropertyChangedSignal("Size"):Connect(update)
+						ancestorConnections[-1] = connection
 						table.insert(ancestorConnections, instance:GetPropertyChangedSignal("Adornee"):Connect(function()
 							connection:Disconnect()
 							adornee = instance.Adornee
