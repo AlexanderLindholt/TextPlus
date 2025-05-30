@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.14.0
+v1.15.0
 
 An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
@@ -70,8 +70,7 @@ if not SignalPlus then error("Could not find 'SignalPlus' module.") end
 SignalPlus = require(SignalPlus)
 
 local userFonts = CollectionService:GetTagged("Fonts")[1]
-if not userFonts then error("Could not find 'Fonts' module.") end
-userFonts = require(userFonts)
+if userFonts then userFonts = require(userFonts) end
 
 local camera = workspace.CurrentCamera
 
@@ -93,7 +92,7 @@ local defaultRotation = 0
 local defaultStrokeSize = 10
 local defaultStrokeColor = Color3.fromRGB(0, 0, 0)
 
-local defaultShadowOffset = Vector2.new(0, 4)
+local defaultShadowOffset = Vector2.new(0, 20)
 local defaultShadowColor = Color3.fromRGB(50, 50, 50)
 
 local defaultLineHeight = 1
@@ -331,7 +330,7 @@ if userFonts and next(userFonts) then
 			table.freeze(parent[key])
 		end
 	end
-	processFonts(userFonts, "TextPlus.CustomFonts")
+	processFonts(userFonts, "TextPlus.Fonts")
 	table.freeze(userFonts)
 end
 
@@ -440,8 +439,6 @@ module.GetCharacters = function(frame: Container): {TextLabel | ImageLabel}
 	if not customization then return noOperation end
 	
 	-- Create and return iterator.
-	local characterClass = if typeof(customization.Font) == "Font" then "TextLabel" else "ImageLabel"
-	
 	return coroutine.wrap(function()
 		if customization.LineSorting and customization.WordSorting then
 			-- Both sortings.
@@ -470,6 +467,8 @@ module.GetCharacters = function(frame: Container): {TextLabel | ImageLabel}
 			end
 		else
 			-- No sorting.
+			local characterClass = if typeof(customization.Font) == "Font" then "TextLabel" else "ImageLabel"
+			
 			for index, character in frame:GetChildren() do
 				if not character:IsA(characterClass) then continue end
 				
@@ -1324,10 +1323,17 @@ local function handleDynamic(frame, text, customization)
 		-- Cache information.
 		frameText[frame] = text
 		frameCustomizations[frame] = customization
+		
 		-- Clear current text.
 		clear(frame)
-		-- Render.
-		render(frame, text, customization, frameSizes[frame])
+		
+		-- Render new text.
+		if text == "" then
+			frameTextBounds[frame] = Vector2.zero
+			frameUpdateSignals[frame]:Fire()
+		else
+			render(frame, text, customization, frameSizes[frame])
+		end
 	else
 		-- Cache information.
 		frameText[frame] = text
@@ -1336,178 +1342,196 @@ local function handleDynamic(frame, text, customization)
 		-- Setup dynamic stuff.
 		local ancestorConnections = {}
 		local function update()
+			-- Clear current text.
 			clear(frame)
 			
+			-- Calculate and cache size.
 			local size = calculateAbsoluteSize(frame)
 			frameSizes[frame] = size
-			render(frame, frameText[frame], frameCustomizations[frame], size)
+			
+			-- Render new text.
+			local text = frameText[frame]
+			if text == "" then
+				frameTextBounds[frame] = Vector2.zero
+				frameUpdateSignals[frame]:Fire()
+			else
+				render(frame, text, frameCustomizations[frame], size)
+			end
 		end
 		local function fullUpdate()
-			-- Calculate absolute size, and connect to size changed for ancestors.
-			local instance = frame
-			
-			local scaleX = 1
-			local scaleY = 1
-			local offsetX = 0
-			local offsetY = 0
-			
-			local rootSizeX = nil
-			local rootSizeY = nil
-			
-			while true do
-				-- Cache parent.
-				local parent = instance.Parent
+			local text = frameText[frame]
+			if text == "" then
+				clear(frame)
+				frameSizes[frame] = calculateAbsoluteSize(frame)
+				frameTextBounds[frame] = Vector2.zero
+				frameUpdateSignals[frame]:Fire()
+			else
+				-- Calculate absolute size, and listen to size change on ancestors.
+				local instance = frame
 				
-				-- Ensure a parent.
-				if not parent then break end
+				local scaleX = 1
+				local scaleY = 1
+				local offsetX = 0
+				local offsetY = 0
 				
-				-- Get size.
-				local grid = parent:FindFirstChildOfClass("UIGridLayout")
-				local size = nil
-				if grid then
-					size = grid.CellSize
-					-- Connect to size changed.
-					table.insert(ancestorConnections, grid:GetPropertyChangedSignal("CellSize"):Connect(update))
-				else
-					size = instance.Size
-				end
-				local x = size.X
-				local y = size.Y
-				-- Accumulate offsets using current scale.
-				offsetX = x.Offset*scaleX + offsetX
-				offsetY = y.Offset*scaleY + offsetY
-				-- Update scales.
-				scaleX = x.Scale*scaleX
-				scaleY = y.Scale*scaleY
+				local rootSizeX = nil
+				local rootSizeY = nil
 				
-				-- Traverse.
-				instance = parent
-				
-				-- Check for root gui instance, and if found, calculate root size.
-				if instance:IsA("ScreenGui") then
-					-- Verify camera.
-					if not camera then break end
+				while true do
+					-- Cache parent.
+					local parent = instance.Parent
 					
-					-- Calculate and save viewport size.
-					local viewportSize = camera.ViewportSize
-					if instance.IgnoreGuiInset then
-						rootSizeX = viewportSize.X
-						rootSizeY = viewportSize.Y
+					-- Ensure a parent.
+					if not parent then break end
+					
+					-- Get size.
+					local grid = parent:FindFirstChildOfClass("UIGridLayout")
+					local size = nil
+					if grid then
+						size = grid.CellSize
+						-- Connect to size changed.
+						table.insert(ancestorConnections, grid:GetPropertyChangedSignal("CellSize"):Connect(update))
 					else
-						rootSizeX = viewportSize.X - guiInset.X
-						rootSizeY = viewportSize.Y - guiInset.Y
+						size = instance.Size
 					end
+					local x = size.X
+					local y = size.Y
+					-- Accumulate offsets using current scale.
+					offsetX = x.Offset*scaleX + offsetX
+					offsetY = y.Offset*scaleY + offsetY
+					-- Update scales.
+					scaleX = x.Scale*scaleX
+					scaleY = y.Scale*scaleY
 					
-					-- Ensure no saved SurfaceGui size.
-					frameSurfaceGuiSizes[frame] = nil
+					-- Traverse.
+					instance = parent
 					
-					-- Listen for size change.
-					table.insert(ancestorConnections, camera:GetPropertyChangedSignal("ViewportSize"):Connect(update))
-					
-					-- Stop loop.
-					break
-				elseif instance:IsA("SurfaceGui") then
-					-- Get and verify adornee.
-					local adornee = instance.Adornee
-					if not adornee then
-						adornee = instance.Parent
-						if not adornee then break end
-					end
-					if not adornee:IsA("BasePart") then break end
-					
-					-- Calculate and save surface size.
-					local face = instance.Face
-					if instance.SizingMode == Enum.SurfaceGuiSizingMode.PixelsPerStud then
-						local pixelsPerStud = instance.PixelsPerStud
-						local partSize = adornee.Size
-						if face == Enum.NormalId.Front or face == Enum.NormalId.Back then
-							rootSizeX = partSize.X*pixelsPerStud
-							rootSizeY = partSize.Y*pixelsPerStud
-						elseif face == Enum.NormalId.Left or face == Enum.NormalId.Right then
-							rootSizeX = partSize.Z*pixelsPerStud
-							rootSizeY = partSize.Y*pixelsPerStud
+					-- Check for root gui instance, and if found, calculate root size.
+					if instance:IsA("ScreenGui") then
+						-- Verify camera.
+						if not camera then break end
+						
+						-- Calculate and save viewport size.
+						local viewportSize = camera.ViewportSize
+						if instance.IgnoreGuiInset then
+							rootSizeX = viewportSize.X
+							rootSizeY = viewportSize.Y
 						else
-							-- Top or bottom face.
-							rootSizeX = partSize.X*pixelsPerStud
-							rootSizeY = partSize.Z*pixelsPerStud
+							rootSizeX = viewportSize.X - guiInset.X
+							rootSizeY = viewportSize.Y - guiInset.Y
 						end
-					else
-						local canvasSize = instance.CanvasSize
-						rootSizeX = canvasSize.X
-						rootSizeY = canvasSize.Y
-					end
-					
-					frameSurfaceGuiSizes[frame] = Vector2.new(rootSizeX, rootSizeY)
-					
-					-- Listen to changes.
-					do
-						local connection = nil
+						
+						-- Ensure no saved SurfaceGui size.
+						frameSurfaceGuiSizes[frame] = nil
+						
+						-- Listen for size change.
+						table.insert(ancestorConnections, camera:GetPropertyChangedSignal("ViewportSize"):Connect(update))
+						
+						-- Stop loop.
+						break
+					elseif instance:IsA("SurfaceGui") then
+						-- Get and verify adornee.
+						local adornee = instance.Adornee
+						if not adornee then
+							adornee = instance.Parent
+							if not adornee then break end
+						end
+						if not adornee:IsA("BasePart") then break end
+						
+						-- Calculate and save surface size.
+						local face = instance.Face
 						if instance.SizingMode == Enum.SurfaceGuiSizingMode.PixelsPerStud then
-							connection = instance:GetPropertyChangedSignal("PixelsPerStud"):Connect(update)
+							local pixelsPerStud = instance.PixelsPerStud
+							local partSize = adornee.Size
+							if face == Enum.NormalId.Front or face == Enum.NormalId.Back then
+								rootSizeX = partSize.X*pixelsPerStud
+								rootSizeY = partSize.Y*pixelsPerStud
+							elseif face == Enum.NormalId.Left or face == Enum.NormalId.Right then
+								rootSizeX = partSize.Z*pixelsPerStud
+								rootSizeY = partSize.Y*pixelsPerStud
+							else
+								-- Top or bottom face.
+								rootSizeX = partSize.X*pixelsPerStud
+								rootSizeY = partSize.Z*pixelsPerStud
+							end
 						else
-							connection = instance:GetPropertyChangedSignal("CanvasSize"):Connect(update)
+							local canvasSize = instance.CanvasSize
+							rootSizeX = canvasSize.X
+							rootSizeY = canvasSize.Y
 						end
-						ancestorConnections[0] = connection
-						table.insert(ancestorConnections, instance:GetPropertyChangedSignal("SizingMode"):Connect(function()
-							connection:Disconnect()
+						
+						frameSurfaceGuiSizes[frame] = Vector2.new(rootSizeX, rootSizeY)
+						
+						-- Listen to changes.
+						do
+							local connection = nil
 							if instance.SizingMode == Enum.SurfaceGuiSizingMode.PixelsPerStud then
 								connection = instance:GetPropertyChangedSignal("PixelsPerStud"):Connect(update)
 							else
 								connection = instance:GetPropertyChangedSignal("CanvasSize"):Connect(update)
 							end
 							ancestorConnections[0] = connection
-							update()
-						end))
-					end
-					do
-						local connection = adornee:GetPropertyChangedSignal("Size"):Connect(update)
-						ancestorConnections[-1] = connection
-						table.insert(ancestorConnections, instance:GetPropertyChangedSignal("Adornee"):Connect(function()
-							connection:Disconnect()
-							adornee = instance.Adornee
-							if adornee then
-								connection = instance.Adornee:GetPropertyChangedSignal("Size"):Connect(update)
-							else
-								connection = nil
-							end
+							table.insert(ancestorConnections, instance:GetPropertyChangedSignal("SizingMode"):Connect(function()
+								connection:Disconnect()
+								if instance.SizingMode == Enum.SurfaceGuiSizingMode.PixelsPerStud then
+									connection = instance:GetPropertyChangedSignal("PixelsPerStud"):Connect(update)
+								else
+									connection = instance:GetPropertyChangedSignal("CanvasSize"):Connect(update)
+								end
+								ancestorConnections[0] = connection
+								update()
+							end))
+						end
+						do
+							local connection = adornee:GetPropertyChangedSignal("Size"):Connect(update)
 							ancestorConnections[-1] = connection
-							update()
-						end))
-					end
-					table.insert(ancestorConnections, instance:GetPropertyChangedSignal("Face"):Connect(update))
-					
-					-- Stop loop.
-					break
-				else
-					-- Verify instance and connect to size changed if gui.
-					if instance:IsA("GuiObject") then
-						table.insert(ancestorConnections, instance:GetPropertyChangedSignal("Size"):Connect(update))
-					elseif not instance:IsA("Folder") then
+							table.insert(ancestorConnections, instance:GetPropertyChangedSignal("Adornee"):Connect(function()
+								connection:Disconnect()
+								adornee = instance.Adornee
+								if adornee then
+									connection = instance.Adornee:GetPropertyChangedSignal("Size"):Connect(update)
+								else
+									connection = nil
+								end
+								ancestorConnections[-1] = connection
+								update()
+							end))
+						end
+						table.insert(ancestorConnections, instance:GetPropertyChangedSignal("Face"):Connect(update))
+						
+						-- Stop loop.
 						break
+					else
+						-- Verify instance and connect to size changed if gui.
+						if instance:IsA("GuiObject") then
+							table.insert(ancestorConnections, instance:GetPropertyChangedSignal("Size"):Connect(update))
+						elseif not instance:IsA("Folder") then
+							break
+						end
 					end
 				end
-			end
-			
-			if rootSizeX then
-				-- Final calculation.
-				local size = Vector2.new(
-					rootSizeX*scaleX + offsetX,
-					rootSizeY*scaleY + offsetY
-				)
-				-- Cache size.
-				frameSizes[frame] = size
-				-- Render.
-				render(frame, frameText[frame], frameCustomizations[frame], size)
-			else
-				-- Remove all connections from invalid ancestor.
-				for index, connection in ancestorConnections do
-					connection:Disconnect()
-					ancestorConnections[index] = nil
+				
+				if rootSizeX then
+					-- Final calculation.
+					local size = Vector2.new(
+						rootSizeX*scaleX + offsetX,
+						rootSizeY*scaleY + offsetY
+					)
+					-- Cache size.
+					frameSizes[frame] = size
+					-- Clear current text.
+					clear(frame)
+					-- Render new text.
+					render(frame, text, frameCustomizations[frame], size)
+				else
+					-- Remove all connections from invalid ancestor.
+					for index, connection in ancestorConnections do
+						connection:Disconnect()
+						ancestorConnections[index] = nil
+					end
+					-- Cache size.
+					frameSizes[frame] = nil
 				end
-				-- Cache size.
-				frameSizes[frame] = Vector2.zero
-				-- Render.
-				render(frame, frameText[frame], frameCustomizations[frame], Vector2.zero)
 			end
 		end
 		fullUpdate()
@@ -1743,8 +1767,13 @@ local function create(frame, text, customization)
 			frameSizes[frame] = nil
 		end)
 	end
-	-- Render.
-	render(frame, text, customization, size)
+	-- Render new text.
+	if text == "" then
+		frameTextBounds[frame] = Vector2.zero
+		frameUpdateSignals[frame]:Fire()
+	else
+		render(frame, text, customization, size)
+	end
 end
 --[[
 Creates text inside of a specified frame.
@@ -1754,19 +1783,15 @@ If text is already present, it will overwrite text and merge customizations.
 ]]--
 module.Create = function(frame: Container, text: string, customization: Customization?)
 	-- Argument errors.
-	if not text then error("No text provided.", 2) end
+	if type(text) ~= "string" then error("No text provided.", 2) end
 	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame provided.", 2) end
-	
-	-- Clear current text if string is empty.
-	if text == "" then
-		clear(frame)
-		return
-	end
 	
 	-- Handle customization.
 	if frameCustomizations[frame] then
+		-- Clear current text.
 		clear(frame)
 		
+		-- Handle customization.
 		if type(customization) == "table" then
 			-- Merge customizations.
 			local newCustomization = customization
