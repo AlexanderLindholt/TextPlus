@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.13.2
+v1.14.0
 
 An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
@@ -143,9 +143,13 @@ local customizationOptions = {
 }
 
 local scaleSizeTypes = {
-	X = true,
-	Y = true,
-	XY = true
+	RootX = true,
+	RootY = true,
+	RootXY = true,
+	
+	FrameX = true,
+	FrameY = true,
+	FrameXY = true,
 }
 
 local xAlignments = {
@@ -160,6 +164,45 @@ local yAlignments = {
 	Bottom = true,
 	Justified = true
 }
+
+-- Instance tables.
+local textLabels = {}
+local imageLabels = {}
+local uiStrokes = {}
+local folders = {}
+-- Instance functions.
+local function getTextLabel()
+	local instance = textLabels[#textLabels]
+	if not instance then
+		return Instance.new("TextLabel")
+	end
+	textLabels[#textLabels] = nil
+	return instance
+end
+local function getImageLabel()
+	local instance = imageLabels[#imageLabels]
+	if not instance then
+		return Instance.new("ImageLabel")
+	end
+	imageLabels[#imageLabels] = nil
+	return instance
+end
+local function getUIStroke()
+	local instance = uiStrokes[#uiStrokes]
+	if not instance then
+		return Instance.new("UIStroke")
+	end
+	uiStrokes[#uiStrokes] = nil
+	return instance
+end
+local function getFolder()
+	local instance = folders[#folders]
+	if not instance then
+		return Instance.new("Folder")
+	end
+	folders[#folders] = nil
+	return instance
+end
 
 -- Frame data tables.
 local frameText = {}
@@ -305,7 +348,9 @@ export type Customization = {
 	
 	Size: number?,
 	
-	ScaleSize: "X" | "Y" | "XY"?,
+	ScaleSize:
+		"RootX" | "RootY" | "RootXY" |
+		"FrameX" | "FrameY" | "FrameXY"?,
 	MinimumSize: number?,
 	MaximumSize: number?,
 	
@@ -395,11 +440,15 @@ module.GetCharacters = function(frame: Container): {TextLabel | ImageLabel}
 	if not customization then return noOperation end
 	
 	-- Create and return iterator.
+	local characterClass = if typeof(customization.Font) == "Font" then "TextLabel" else "ImageLabel"
+	
 	return coroutine.wrap(function()
 		if customization.LineSorting and customization.WordSorting then
 			-- Both sortings.
 			local index = 0
 			for _, line in frame:GetChildren() do
+				if not line:IsA("Folder") then continue end
+				
 				for _, word in line:GetChildren() do
 					for _, character in word:GetChildren() do
 						index += 1
@@ -411,6 +460,8 @@ module.GetCharacters = function(frame: Container): {TextLabel | ImageLabel}
 			-- One sorting.
 			local index = 0
 			for _, folder in frame:GetChildren() do
+				if not folder:IsA("Folder") then continue end
+				
 				-- Line or word folder.
 				for _, character in folder:GetChildren() do
 					index += 1
@@ -420,6 +471,8 @@ module.GetCharacters = function(frame: Container): {TextLabel | ImageLabel}
 		else
 			-- No sorting.
 			for index, character in frame:GetChildren() do
+				if not character:IsA(characterClass) then continue end
+				
 				coroutine.yield(index, character)
 			end
 		end
@@ -490,7 +543,7 @@ local function calculateAbsoluteSize(frame)
 				rootSizeY = viewportSize.Y - guiInset.Y
 			end
 			
-			-- Ensure no saved surface size.
+			-- Ensure no saved SurfaceGui size.
 			frameSurfaceGuiSizes[frame] = nil
 			
 			-- Stop loop.
@@ -542,9 +595,83 @@ local function calculateAbsoluteSize(frame)
 		rootSizeY*scaleY + offsetY
 	)
 end
+local function clear(frame)
+	local customization = frameCustomizations[frame]
+	
+	local characterTable = nil
+	local characterClass = nil
+	if typeof(customization.Font) == "Font" then
+		characterTable = textLabels
+		characterClass = "TextLabel"
+	else
+		characterTable = imageLabels
+		characterClass = "ImageLabel"
+	end
+	
+	if customization.LineSorting and customization.WordSorting then
+		-- Full sorting.
+		for _, line in frame:GetChildren() do
+			if not line:IsA("Folder") then continue end
+			
+			line.Parent = nil
+			table.insert(folders, line)
+			
+			for _, word in line:GetChildren() do
+				word.Parent = nil
+				table.insert(folders, word)
+				
+				for _, character in word:GetChildren() do
+					character.Parent = nil
+					table.insert(characterTable, character)
+					
+					local uiStroke = character:FindFirstChildOfClass("UIStroke")
+					if uiStroke then
+						uiStroke.Parent = nil
+						table.insert(uiStrokes, uiStroke)
+					end
+				end
+			end
+		end
+	elseif customization.LineSorting or customization.WordSorting then
+		-- One sorting.
+		for _, folder in frame:GetChildren() do
+			if not folder:IsA("Folder") then continue end
+			
+			-- Line or word folder.
+			folder.Parent = nil
+			table.insert(folders, folder)
+			
+			for _, character in folder:GetChildren() do
+				character.Parent = nil
+				table.insert(characterTable, character)
+				
+				local uiStroke = character:FindFirstChildOfClass("UIStroke")
+				if uiStroke then
+					uiStroke.Parent = nil
+					table.insert(uiStrokes, uiStroke)
+				end
+			end
+		end
+	else
+		-- No sorting.
+		for _, character in frame:GetChildren() do
+			if not character:IsA(characterClass) then continue end
+			
+			character.Parent = nil
+			table.insert(characterTable, character)
+			
+			local uiStroke = character:FindFirstChildOfClass("UIStroke")
+			if uiStroke then
+				uiStroke.Parent = nil
+				table.insert(uiStrokes, uiStroke)
+			end
+		end
+	end
+end
 local function render(frame, text, customization, frameSize)
-	-- Clear previous characters and any content, that may interfere.
-	frame:ClearAllChildren()
+	-- Cache frame axis sizes.
+	local frameWidth = frameSize.X
+	local frameHeight = frameSize.Y
 	
 	-- Customization values.
 	local font = customization.Font
@@ -553,25 +680,36 @@ local function render(frame, text, customization, frameSize)
 	local scaleSize = customization.ScaleSize
 	if scaleSize then
 		-- Scale size.
-		local surfaceGuiSize = frameSurfaceGuiSizes[frame]
-		if surfaceGuiSize then
-			if scaleSize == "X" then
-				size = size*0.01*surfaceGuiSize.X
-			elseif scaleSize == "Y" then
-				size = size*0.01*surfaceGuiSize.Y
+		if scaleSize:sub(1, #scaleSize - 1) == "Root" then
+			local surfaceGuiSize = frameSurfaceGuiSizes[frame]
+			if surfaceGuiSize then
+				if scaleSize == "RootX" then
+					size = size*0.01*surfaceGuiSize.X
+				elseif scaleSize == "RootY" then
+					size = size*0.01*surfaceGuiSize.Y
+				else
+					size = size*0.01*(surfaceGuiSize.X + surfaceGuiSize.Y)/2
+				end
 			else
-				size = size*0.01*(surfaceGuiSize.X + surfaceGuiSize.Y)/2
+				if scaleSize == "RootX" then
+					size = size*0.01*camera.ViewportSize.X
+				elseif scaleSize == "RootY" then
+					size = size*0.01*camera.ViewportSize.Y
+				else
+					local viewportSize = camera.ViewportSize
+					size = size*0.01*(viewportSize.X + viewportSize.Y)/2
+				end
 			end
 		else
-			if scaleSize == "X" then
-				size = size*0.01*camera.ViewportSize.X
-			elseif scaleSize == "Y" then
-				size = size*0.01*camera.ViewportSize.Y
+			if scaleSize == "FrameX" then
+				size = size*0.01*frameWidth
+			elseif scaleSize == "FrameY" then
+				size = size*0.01*frameHeight
 			else
-				local viewportSize = camera.ViewportSize
-				size = size*0.01*(viewportSize.X + viewportSize.Y)/2
+				size = size*0.01*(frameWidth + frameHeight)/2
 			end
 		end
+		
 		-- Limit scaled size.
 		if size < 1 then
 			size = 1
@@ -604,7 +742,7 @@ local function render(frame, text, customization, frameSize)
 	
 	local shadowOffset = customization.ShadowOffset
 	
-	local lineHeight = customization.LineHeight*size -- Get the line height relative to size.
+	local lineHeight = customization.LineHeight*size -- Get the line height relative to size.   
 	local characterSpacing = customization.CharacterSpacing
 	
 	local truncateEnabled = customization.Truncate
@@ -657,7 +795,7 @@ local function render(frame, text, customization, frameSize)
 						local imageSize = Vector2.new(width, height)
 						local imageOffset = data[3]
 						-- Shadow.
-						local shadow = Instance.new("ImageLabel")
+						local shadow = getImageLabel()
 						do
 							-- Stylize.
 							shadow.BackgroundTransparency = 1
@@ -678,7 +816,7 @@ local function render(frame, text, customization, frameSize)
 						-- Main.
 						do
 							-- Create and stylize.
-							local main = Instance.new("ImageLabel")
+							local main = getImageLabel()
 							main.BackgroundTransparency = 1
 							main.Image = image
 							main.ImageColor3 = color
@@ -700,7 +838,7 @@ local function render(frame, text, customization, frameSize)
 						return shadow
 					else -- Missing character.
 						-- Create and stylize.
-						local imageLabel = Instance.new("ImageLabel")
+						local imageLabel = getImageLabel()
 						imageLabel.BackgroundTransparency = 1
 						imageLabel.Image = missingCharacter
 						imageLabel.ImageColor3 = color
@@ -719,7 +857,7 @@ local function render(frame, text, customization, frameSize)
 					local data = characters[character]
 					if data then
 						-- Create and stylize.
-						local imageLabel = Instance.new("ImageLabel")
+						local imageLabel = getImageLabel()
 						imageLabel.BackgroundTransparency = 1
 						imageLabel.Image = image
 						imageLabel.ImageColor3 = color
@@ -740,7 +878,7 @@ local function render(frame, text, customization, frameSize)
 						return imageLabel
 					else -- Missing character.
 						-- Create and stylize.
-						local imageLabel = Instance.new("ImageLabel")
+						local imageLabel = getImageLabel()
 						imageLabel.BackgroundTransparency = 1
 						imageLabel.Image = missingCharacter
 						imageLabel.ImageColor3 = color
@@ -785,7 +923,7 @@ local function render(frame, text, customization, frameSize)
 				local shadowTransparency = customization.ShadowTransparency
 				
 				createCharacter = function(character, position, width)
-					local shadow = Instance.new("TextLabel")
+					local shadow = getTextLabel()
 					do
 						-- Stylize.
 						shadow.BackgroundTransparency = 1
@@ -801,7 +939,7 @@ local function render(frame, text, customization, frameSize)
 						shadow.Rotation = rotation
 						shadow.Position = position + offset + shadowOffset
 					end
-					local main = Instance.new("TextLabel")
+					local main = getTextLabel()
 					do
 						-- Stylize.
 						main.BackgroundTransparency = 1
@@ -822,14 +960,14 @@ local function render(frame, text, customization, frameSize)
 					-- Apply stroke if customization is given.
 					if strokeSize then
 						do
-							local uiStroke = Instance.new("UIStroke")
+							local uiStroke = getUIStroke()
 							uiStroke.Thickness = strokeSize
 							uiStroke.Color = strokeColor
 							uiStroke.Transparency = strokeTransparency
 							uiStroke.Parent = main
 						end
 						do
-							local uiStroke = Instance.new("UIStroke")
+							local uiStroke = getUIStroke()
 							uiStroke.Thickness = strokeSize
 							uiStroke.Color = strokeColor
 							uiStroke.Transparency = strokeTransparency
@@ -843,7 +981,7 @@ local function render(frame, text, customization, frameSize)
 				-- No shadow.
 				createCharacter = function(character, position, width)
 					-- Create and stylize.
-					local textLabel = Instance.new("TextLabel")
+					local textLabel = getTextLabel()
 					textLabel.BackgroundTransparency = 1
 					textLabel.Text = character
 					textLabel.TextSize = size
@@ -858,7 +996,7 @@ local function render(frame, text, customization, frameSize)
 					textLabel.Position = position + offset
 					-- Apply stroke if customization is given.
 					if strokeSize then
-						local uiStroke = Instance.new("UIStroke")
+						local uiStroke = getUIStroke()
 						uiStroke.Thickness = strokeSize
 						uiStroke.Color = strokeColor
 						uiStroke.Transparency = strokeTransparency
@@ -874,9 +1012,6 @@ local function render(frame, text, customization, frameSize)
 	-- Calculate base information.
 	local textWidth = 0
 	
-	local frameWidth = frameSize.X
-	local frameHeight = frameSize.Y
-	
 	local spaceWidth = getCharacterWidth(" ")
 	
 	local dotWidth = getCharacterWidth(".")
@@ -889,6 +1024,7 @@ local function render(frame, text, customization, frameSize)
 	
 	local truncated = false
 	local function truncate()
+		-- Access last line.
 		local line = lines[#lines]
 		local lineWords = line[1]
 		
@@ -997,6 +1133,7 @@ local function render(frame, text, customization, frameSize)
 			lineWidth = 0
 			lineWords = {}
 		else
+			-- Process words.
 			for word in (line.." "):gmatch("([^ ]*) ") do
 				if word == "" then
 					table.insert(lineWords, false)
@@ -1044,6 +1181,7 @@ local function render(frame, text, customization, frameSize)
 				end
 			end
 			
+			-- Exit if truncated.
 			if truncated then break end
 			
 			-- Update text width.
@@ -1097,6 +1235,8 @@ local function render(frame, text, customization, frameSize)
 	
 	for lineIndex, lineData in lines do
 		local words = lineData[1]
+		
+		-- Horizontal alignment.
 		local wordGap = nil
 		local x = nil
 		if xAlignment == "Left" then
@@ -1121,7 +1261,7 @@ local function render(frame, text, customization, frameSize)
 		-- Line sorting.
 		local lineContainer = frame
 		if lineSorting then
-			lineContainer = Instance.new("Folder")
+			lineContainer = getFolder()
 			lineContainer.Name = tostring(lineIndex)
 			lineContainer.Parent = frame
 		end
@@ -1131,7 +1271,7 @@ local function render(frame, text, customization, frameSize)
 			if word then -- There may be empty words, caused by consecutive spaces. These we skip.
 				local wordContainer = nil
 				if wordSorting then
-					wordContainer = Instance.new("Folder")
+					wordContainer = getFolder()
 					-- Numerical naming.
 					if lineSorting then
 						wordContainer.Name = tostring(wordIndex)
@@ -1184,6 +1324,8 @@ local function handleDynamic(frame, text, customization)
 		-- Cache information.
 		frameText[frame] = text
 		frameCustomizations[frame] = customization
+		-- Clear current text.
+		clear(frame)
 		-- Render.
 		render(frame, text, customization, frameSizes[frame])
 	else
@@ -1194,6 +1336,8 @@ local function handleDynamic(frame, text, customization)
 		-- Setup dynamic stuff.
 		local ancestorConnections = {}
 		local function update()
+			clear(frame)
+			
 			local size = calculateAbsoluteSize(frame)
 			frameSizes[frame] = size
 			render(frame, frameText[frame], frameCustomizations[frame], size)
@@ -1254,7 +1398,7 @@ local function handleDynamic(frame, text, customization)
 						rootSizeY = viewportSize.Y - guiInset.Y
 					end
 					
-					-- Ensure no saved surface size.
+					-- Ensure no saved SurfaceGui size.
 					frameSurfaceGuiSizes[frame] = nil
 					
 					-- Listen for size change.
@@ -1501,16 +1645,8 @@ local function correctCustomization(customization)
 		customization.Pixelated = nil
 	end
 	
-	local offset = customization.Offset
-	if typeof(offset) ~= "Vector2" then
+	if typeof(customization.Offset) ~= "Vector2" then
 		customization.Offset = defaultOffset
-	else
-		if offset.X < 1 then
-			customization.ShadowOffset = 1
-		end
-		if offset.Y < 1 then
-			customization.ShadowOffset = 1
-		end
 	end
 	if type(customization.Rotation) ~= "number" then
 		customization.Rotation = defaultRotation
@@ -1567,12 +1703,6 @@ local function correctCustomization(customization)
 			customization.ShadowTransparency = nil
 		end
 	else
-		if shadowOffset.X < 1 then
-			customization.ShadowOffset = 1
-		end
-		if shadowOffset.Y < 1 then
-			customization.ShadowOffset = 1
-		end
 		if typeof(shadowColor) ~= "Color3" then
 			customization.ShadowColor = defaultShadowColor
 		end
@@ -1625,11 +1755,18 @@ If text is already present, it will overwrite text and merge customizations.
 module.Create = function(frame: Container, text: string, customization: Customization?)
 	-- Argument errors.
 	if not text then error("No text provided.", 2) end
-	if text == "" then error("If you want to clear the text, use 'frame:ClearAllChildren()' instead.", 2) end
 	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame provided.", 2) end
+	
+	-- Clear current text if string is empty.
+	if text == "" then
+		clear(frame)
+		return
+	end
 	
 	-- Handle customization.
 	if frameCustomizations[frame] then
+		clear(frame)
+		
 		if type(customization) == "table" then
 			-- Merge customizations.
 			local newCustomization = customization
