@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.16.0
+v1.16.1
 
 An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
@@ -91,7 +91,7 @@ local defaultTransparency = 0
 local defaultOffset = Vector2.zero
 local defaultRotation = 0
 
-local defaultStrokeSize = 10
+local defaultStrokeSize = 5
 local defaultStrokeColor = Color3.fromRGB(0, 0, 0)
 
 local defaultShadowOffset = Vector2.new(0, 20)
@@ -941,6 +941,7 @@ local function render(frame, text, customization, frameSize)
 			local strokeTransparency = nil
 			if strokeSize then
 				strokeSize = strokeSize*0.01*size
+				if strokeSize < 1 then strokeSize = 1 end
 				strokeColor = customization.StrokeColor
 				strokeTransparency = customization.StrokeTransparency
 			end
@@ -1870,7 +1871,7 @@ module.Create = function(frame: Container, text: string, customization: Customiz
 		end
 	else
 		-- Create and save update signal.
-		frameUpdateSignals[frame] = Signal()
+		if Signal then frameUpdateSignals[frame] = Signal() end
 		
 		-- Ensure the customization is a table.
 		if type(customization) == "table" then
