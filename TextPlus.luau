@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.15.0
+v1.16.0
 
 An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
@@ -65,9 +65,11 @@ local TextService = game:GetService("TextService")
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 
-local SignalPlus = CollectionService:GetTagged("SignalPlus")[1]
-if not SignalPlus then error("Could not find 'SignalPlus' module.") end
-SignalPlus = require(SignalPlus)
+local Signal = CollectionService:GetTagged("Signal")[1]
+if Signal then
+	Signal = require(Signal)
+	if type(Signal) == "table" and Signal.new then Signal = Signal.new end
+end
 
 local userFonts = CollectionService:GetTagged("Fonts")[1]
 if userFonts then userFonts = require(userFonts) end
@@ -210,11 +212,11 @@ local frameTextBounds = {}
 local frameDynamicConnections = {}
 local frameSizes = {}
 local frameSurfaceGuiSizes = {}
-local frameUpdateSignals = {}
+local frameUpdateSignals = if Signal then {} else nil
 
 -- Roblox built-in text rendering stuff.
 local textBoundsParams = Instance.new("GetTextBoundsParams")
-textBoundsParams.Size = 100 -- Size limit for Roblox built-in text rendering.
+textBoundsParams.Size = 100 -- Size limit for Roblox's built-in text-rendering.
 local characterWidthCache = {}
 
 -- Create raw custom fonts table.
@@ -330,7 +332,7 @@ if userFonts and next(userFonts) then
 			table.freeze(parent[key])
 		end
 	end
-	processFonts(userFonts, "TextPlus.Fonts")
+	processFonts(userFonts, "Fonts")
 	table.freeze(userFonts)
 end
 
@@ -387,8 +389,6 @@ type Container = Frame | ScrollingFrame | CanvasGroup
 -- Module.
 local module = {}
 
-module.Fonts = userFonts -- Set quick access to custom fonts.
-
 --[[
 Gets the raw text string for a frame.
 ]]--
@@ -440,38 +440,54 @@ module.GetCharacters = function(frame: Container): {TextLabel | ImageLabel}
 	
 	-- Create and return iterator.
 	return coroutine.wrap(function()
-		if customization.LineSorting and customization.WordSorting then
-			-- Both sortings.
+		-- Identify sorting.
+		if customization.LineSorting and customization.WordSorting then -- Full sorting.
+			-- Global character counter.
 			local index = 0
+			
+			-- Loop through lines.
 			for _, line in frame:GetChildren() do
+				-- Verify instance.
 				if not line:IsA("Folder") then continue end
 				
+				-- Loop through words.
 				for _, word in line:GetChildren() do
+					-- Loop through characters.
 					for _, character in word:GetChildren() do
+						-- Increment global character counter.
 						index += 1
+						-- Pass parameters to loop.
 						coroutine.yield(index, character)
 					end
 				end
 			end
-		elseif customization.LineSorting or customization.WordSorting then
-			-- One sorting.
+		elseif customization.LineSorting or customization.WordSorting then -- One sorting.
+			-- Global character counter.
 			local index = 0
+			
+			-- Loop through words/lines.
 			for _, folder in frame:GetChildren() do
+				-- Verify instance.
 				if not folder:IsA("Folder") then continue end
 				
-				-- Line or word folder.
+				-- Loop through characters.
 				for _, character in folder:GetChildren() do
+					-- Increment global character counter.
 					index += 1
+					-- Pass parameters to loop.
 					coroutine.yield(index, character)
 				end
 			end
-		else
-			-- No sorting.
+		else -- No sorting.
+			-- Identify character instance class for verification.
 			local characterClass = if typeof(customization.Font) == "Font" then "TextLabel" else "ImageLabel"
 			
+			-- Loop through characters.
 			for index, character in frame:GetChildren() do
+				-- Verify instance.
 				if not character:IsA(characterClass) then continue end
 				
+				-- Pass parameters to loop.
 				coroutine.yield(index, character)
 			end
 		end
@@ -595,8 +611,10 @@ local function calculateAbsoluteSize(frame)
 	)
 end
 local function clear(frame)
+	-- Get customization.
 	local customization = frameCustomizations[frame]
 	
+	-- Identify character instance class and storage table.
 	local characterTable = nil
 	local characterClass = nil
 	if typeof(customization.Font) == "Font" then
@@ -607,6 +625,7 @@ local function clear(frame)
 		characterClass = "ImageLabel"
 	end
 	
+	-- Identify sorting.
 	if customization.LineSorting and customization.WordSorting then
 		-- Full sorting.
 		for _, line in frame:GetChildren() do
@@ -627,6 +646,12 @@ local function clear(frame)
 					if uiStroke then
 						uiStroke.Parent = nil
 						table.insert(uiStrokes, uiStroke)
+					end
+					
+					local main = character:FindFirstChildOfClass(characterClass)
+					if main then
+						main.Parent = nil
+						table.insert(characterTable, main)
 					end
 				end
 			end
@@ -649,6 +674,12 @@ local function clear(frame)
 					uiStroke.Parent = nil
 					table.insert(uiStrokes, uiStroke)
 				end
+				
+				local main = character:FindFirstChildOfClass(characterClass)
+				if main then
+					main.Parent = nil
+					table.insert(characterTable, main)
+				end
 			end
 		end
 	else
@@ -663,6 +694,12 @@ local function clear(frame)
 			if uiStroke then
 				uiStroke.Parent = nil
 				table.insert(uiStrokes, uiStroke)
+			end
+			
+			local main = character:FindFirstChildOfClass(characterClass)
+			if main then
+				main.Parent = nil
+				table.insert(characterTable, main)
 			end
 		end
 	end
@@ -679,9 +716,9 @@ local function render(frame, text, customization, frameSize)
 	local scaleSize = customization.ScaleSize
 	if scaleSize then
 		-- Scale size.
-		if scaleSize:sub(1, #scaleSize - 1) == "Root" then
+		if scaleSize:sub(1, 4) == "Root" then
 			local surfaceGuiSize = frameSurfaceGuiSizes[frame]
-			if surfaceGuiSize then
+			if surfaceGuiSize then -- SurfaceGui.
 				if scaleSize == "RootX" then
 					size = size*0.01*surfaceGuiSize.X
 				elseif scaleSize == "RootY" then
@@ -689,7 +726,7 @@ local function render(frame, text, customization, frameSize)
 				else
 					size = size*0.01*(surfaceGuiSize.X + surfaceGuiSize.Y)/2
 				end
-			else
+			else -- ScreenGui.
 				if scaleSize == "RootX" then
 					size = size*0.01*camera.ViewportSize.X
 				elseif scaleSize == "RootY" then
@@ -699,7 +736,7 @@ local function render(frame, text, customization, frameSize)
 					size = size*0.01*(viewportSize.X + viewportSize.Y)/2
 				end
 			end
-		else
+		else -- Frame.
 			if scaleSize == "FrameX" then
 				size = size*0.01*frameWidth
 			elseif scaleSize == "FrameY" then
@@ -713,7 +750,7 @@ local function render(frame, text, customization, frameSize)
 		if size < 1 then
 			size = 1
 		else
-			-- Apply user's limits.
+			-- Apply provided limits.
 			local minimumSize = customization.MinimumSize
 			if minimumSize and customization.Size < minimumSize then
 				customization.Size = minimumSize
@@ -803,6 +840,8 @@ local function render(frame, text, customization, frameSize)
 							shadow.ImageTransparency = shadowTransparency
 							if pixelated then
 								shadow.ResampleMode = Enum.ResamplerMode.Pixelated
+							else
+								shadow.ResampleMode = Enum.ResamplerMode.Default
 							end
 							-- Image cutout.
 							shadow.ImageRectSize = imageSize
@@ -822,6 +861,8 @@ local function render(frame, text, customization, frameSize)
 							main.ImageTransparency = transparency
 							if pixelated then
 								main.ResampleMode = Enum.ResamplerMode.Pixelated
+							else
+								main.ResampleMode = Enum.ResamplerMode.Default
 							end
 							-- Image cutout.
 							main.ImageRectSize = imageSize
@@ -863,6 +904,8 @@ local function render(frame, text, customization, frameSize)
 						imageLabel.ImageTransparency = transparency
 						if pixelated then
 							imageLabel.ResampleMode = Enum.ResamplerMode.Pixelated
+						else
+							imageLabel.ResampleMode = Enum.ResamplerMode.Default
 						end
 						-- Image cutout.
 						local width = data[1]
@@ -1316,7 +1359,7 @@ local function render(frame, text, customization, frameSize)
 	frameTextBounds[frame] = Vector2.new(textWidth, textHeight)
 	
 	-- Fire update signal.
-	frameUpdateSignals[frame]:Fire()
+	if Signal then frameUpdateSignals[frame]:Fire() end
 end
 local function handleDynamic(frame, text, customization)
 	if frameDynamicConnections[frame] then
@@ -1330,9 +1373,9 @@ local function handleDynamic(frame, text, customization)
 		-- Render new text.
 		if text == "" then
 			frameTextBounds[frame] = Vector2.zero
-			frameUpdateSignals[frame]:Fire()
+			if Signal then frameUpdateSignals[frame]:Fire() end
 		else
-			render(frame, text, customization, frameSizes[frame])
+			render(frame, text, customization, frameSizes[frame] or calculateAbsoluteSize(frame))
 		end
 	else
 		-- Cache information.
@@ -1353,7 +1396,7 @@ local function handleDynamic(frame, text, customization)
 			local text = frameText[frame]
 			if text == "" then
 				frameTextBounds[frame] = Vector2.zero
-				frameUpdateSignals[frame]:Fire()
+				if Signal then frameUpdateSignals[frame]:Fire() end
 			else
 				render(frame, text, frameCustomizations[frame], size)
 			end
@@ -1362,9 +1405,9 @@ local function handleDynamic(frame, text, customization)
 			local text = frameText[frame]
 			if text == "" then
 				clear(frame)
-				frameSizes[frame] = calculateAbsoluteSize(frame)
+				frameSizes[frame] = nil
 				frameTextBounds[frame] = Vector2.zero
-				frameUpdateSignals[frame]:Fire()
+				if Signal then frameUpdateSignals[frame]:Fire() end
 			else
 				-- Calculate absolute size, and listen to size change on ancestors.
 				local instance = frame
@@ -1712,7 +1755,7 @@ local function correctCustomization(customization)
 	local shadowTransparency = customization.ShadowTransparency
 	if typeof(shadowOffset) ~= "Vector2" then
 		if typeof(shadowColor) == "Color3" then
-			shadowOffset = defaultShadowOffset
+			customization.ShadowOffset = defaultShadowOffset
 			if type(shadowTransparency) ~= "number" then
 				customization.ShadowTransparency = customization.Transparency
 			end
@@ -1770,7 +1813,7 @@ local function create(frame, text, customization)
 	-- Render new text.
 	if text == "" then
 		frameTextBounds[frame] = Vector2.zero
-		frameUpdateSignals[frame]:Fire()
+		if Signal then frameUpdateSignals[frame]:Fire() end
 	else
 		render(frame, text, customization, size)
 	end
@@ -1827,7 +1870,7 @@ module.Create = function(frame: Container, text: string, customization: Customiz
 		end
 	else
 		-- Create and save update signal.
-		frameUpdateSignals[frame] = SignalPlus()
+		frameUpdateSignals[frame] = Signal()
 		
 		-- Ensure the customization is a table.
 		if type(customization) == "table" then
