@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.16.1
+v1.17.0
 
 An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
@@ -74,34 +74,53 @@ end
 local userFonts = CollectionService:GetTagged("Fonts")[1]
 if userFonts then userFonts = require(userFonts) end
 
+-- Customization defaults.
+local defaults = CollectionService:GetTagged("TextDefaults")[1]
+if defaults then
+	defaults = require(defaults)
+else
+	-- Default defaults.
+	defaults = {
+		Font = Font.new("rbxasset://fonts/families/SourceSansPro.json"),
+		
+		Size = 14,
+		
+		ScaleSize = nil,
+		MinimumSize = nil,
+		MaximumSize = nil,
+		
+		Color = Color3.fromRGB(0, 0, 0),
+		Transparency = 0,
+		
+		Offset = Vector2.zero,
+		Rotation = 0,
+		
+		StrokeSize = 5,
+		StrokeColor = Color3.fromRGB(0, 0, 0),
+		
+		ShadowOffset = Vector2.new(0, 20),
+		ShadowColor = Color3.fromRGB(50, 50, 50),
+		
+		LineHeight = 1,
+		CharacterSpacing = 1,
+		
+		Truncate = true, 
+		
+		XAlignment = "Left",
+		YAlignment = "Top",
+		
+		WordSorting = false,
+		LineSorting = false,
+		
+		Dynamic = false
+	}
+end
+
 local camera = workspace.CurrentCamera
 
 local missingCharacter = "rbxassetid://75989824347198" -- Is used when a character is missing in a custom font.
 
 local guiInset = GuiService:GetGuiInset()
-
--- Customization defaults.
-local defaultFont = Font.new("rbxasset://fonts/families/SourceSansPro.json")
-
-local defaultSize = 14
-
-local defaultColor = Color3.fromRGB(0, 0, 0)
-local defaultTransparency = 0
-
-local defaultOffset = Vector2.zero
-local defaultRotation = 0
-
-local defaultStrokeSize = 5
-local defaultStrokeColor = Color3.fromRGB(0, 0, 0)
-
-local defaultShadowOffset = Vector2.new(0, 20)
-local defaultShadowColor = Color3.fromRGB(50, 50, 50)
-
-local defaultLineHeight = 1
-local defaultCharacterSpacing = 1
-
-local defaultXAlignment = "Left"
-local defaultYAlignment = "Top"
 
 -- Lists for validity checks.
 local customizationOptions = {
@@ -220,7 +239,7 @@ textBoundsParams.Size = 100 -- Size limit for Roblox's built-in text-rendering.
 local characterWidthCache = {}
 
 -- Create raw custom fonts table.
-local rawCustomFonts = {}
+local rawUserFonts = {}
 
 -- Verify and preload custom fonts if any.
 if userFonts and next(userFonts) then
@@ -313,7 +332,7 @@ if userFonts and next(userFonts) then
 					table.insert(freeze, key)
 					
 					-- Insert the font into raw fonts table.
-					rawCustomFonts[value] = true
+					rawUserFonts[value] = true
 					
 					-- Preload images.
 					if player then -- If running on client.
@@ -351,7 +370,7 @@ export type Customization = {
 	
 	ScaleSize:
 		"RootX" | "RootY" | "RootXY" |
-		"FrameX" | "FrameY" | "FrameXY"?,
+	"FrameX" | "FrameY" | "FrameXY"?,
 	MinimumSize: number?,
 	MaximumSize: number?,
 	
@@ -626,28 +645,36 @@ local function clear(frame)
 	end
 	
 	-- Identify sorting.
-	if customization.LineSorting and customization.WordSorting then
-		-- Full sorting.
+	if customization.LineSorting and customization.WordSorting then -- Full sorting.
+		-- Loop through lines.
 		for _, line in frame:GetChildren() do
+			-- Verify instance.
 			if not line:IsA("Folder") then continue end
 			
+			-- Remove and store line folder.
 			line.Parent = nil
 			table.insert(folders, line)
 			
+			-- Loop through words.
 			for _, word in line:GetChildren() do
+				-- Remove and store word folder.
 				word.Parent = nil
 				table.insert(folders, word)
 				
+				-- Loop through characters.
 				for _, character in word:GetChildren() do
+					-- Remove and store character instance.
 					character.Parent = nil
 					table.insert(characterTable, character)
 					
+					-- Remove and store character's stroke if existent.
 					local uiStroke = character:FindFirstChildOfClass("UIStroke")
 					if uiStroke then
 						uiStroke.Parent = nil
 						table.insert(uiStrokes, uiStroke)
 					end
 					
+					-- Remove and store the main character if this is a shadow.
 					local main = character:FindFirstChildOfClass(characterClass)
 					if main then
 						main.Parent = nil
@@ -656,25 +683,30 @@ local function clear(frame)
 				end
 			end
 		end
-	elseif customization.LineSorting or customization.WordSorting then
-		-- One sorting.
+	elseif customization.LineSorting or customization.WordSorting then -- One sorting.
+		-- Loop through words/lines.
 		for _, folder in frame:GetChildren() do
+			-- Verify instance.
 			if not folder:IsA("Folder") then continue end
 			
-			-- Line or word folder.
+			-- Remove and store word/line folder.
 			folder.Parent = nil
 			table.insert(folders, folder)
 			
+			-- Loop through characters.
 			for _, character in folder:GetChildren() do
+				-- Remove and store character instance.
 				character.Parent = nil
 				table.insert(characterTable, character)
 				
+				-- Remove and store character's stroke if existent.
 				local uiStroke = character:FindFirstChildOfClass("UIStroke")
 				if uiStroke then
 					uiStroke.Parent = nil
 					table.insert(uiStrokes, uiStroke)
 				end
 				
+				-- Remove and store the main character if this is a shadow.
 				local main = character:FindFirstChildOfClass(characterClass)
 				if main then
 					main.Parent = nil
@@ -682,20 +714,24 @@ local function clear(frame)
 				end
 			end
 		end
-	else
-		-- No sorting.
+	else -- No sorting.
+		-- Loop through characters.
 		for _, character in frame:GetChildren() do
+			-- Verify instance.
 			if not character:IsA(characterClass) then continue end
 			
+			-- Remove and store character instance.
 			character.Parent = nil
 			table.insert(characterTable, character)
 			
+			-- Remove and store character's stroke if existent.
 			local uiStroke = character:FindFirstChildOfClass("UIStroke")
 			if uiStroke then
 				uiStroke.Parent = nil
 				table.insert(uiStrokes, uiStroke)
 			end
 			
+			-- Remove and store the main character if this is a shadow.
 			local main = character:FindFirstChildOfClass(characterClass)
 			if main then
 				main.Parent = nil
@@ -826,11 +862,12 @@ local function render(frame, text, customization, frameSize)
 					-- Calculate information.
 					local data = characters[character]
 					if data then
+						-- Cache character data.
 						local width = data[1]
 						local height = data[2]
 						local imageSize = Vector2.new(width, height)
 						local imageOffset = data[3]
-						-- Shadow.
+						-- Character shadow.
 						local shadow = getImageLabel()
 						do
 							-- Stylize.
@@ -851,7 +888,7 @@ local function render(frame, text, customization, frameSize)
 							shadow.Position = position + UDim2.fromOffset(data[4]*size, data[5]*size) + offset + shadowOffset
 							shadow.Rotation = rotation
 						end
-						-- Main.
+						-- Main character.
 						do
 							-- Create and stylize.
 							local main = getImageLabel()
@@ -966,6 +1003,7 @@ local function render(frame, text, customization, frameSize)
 				local shadowTransparency = customization.ShadowTransparency
 				
 				createCharacter = function(character, position, width)
+					--Character shadow.
 					local shadow = getTextLabel()
 					do
 						-- Stylize.
@@ -982,6 +1020,7 @@ local function render(frame, text, customization, frameSize)
 						shadow.Rotation = rotation
 						shadow.Position = position + offset + shadowOffset
 					end
+					-- Main character.
 					local main = getTextLabel()
 					do
 						-- Stylize.
@@ -1197,14 +1236,48 @@ local function render(frame, text, customization, frameSize)
 							textWidth = lineWidth
 						end
 						
-						-- Truncate next line if necessary.
-						if truncateEnabled and (#lines + 1)*lineHeight + size > frameHeight then
+						-- Truncate if necessary.
+						if truncateEnabled and wordWidth >= frameWidth then
+							-- Remove characters one by one and check for space every time.
+							local foundSpace = false
+							wordWidth += ellipsisWidth
+							for index = #wordCharacters, 2, -1 do
+								wordWidth -= wordCharacters[index][2]
+								wordCharacters[index] = nil
+								
+								if wordWidth < frameWidth then
+									-- Add ellipsis and exit.
+									local dot = {".", dotWidth}
+									table.insert(wordCharacters, dot)
+									table.insert(wordCharacters, dot)
+									table.insert(wordCharacters, dot)
+									
+									foundSpace = true
+									break
+								end
+							end
+							
+							-- Replace word with ellipsis if no space.
+							if not foundSpace then
+								local dot = {".", dotWidth}
+								wordCharacters = {dot, dot, dot}
+								wordWidth = ellipsisWidth
+							end
+							
+							-- Add line(s).
+							if #lineWords == 0 then
+								table.insert(lines, {{wordCharacters}, wordWidth})
+							else
+								table.insert(lines, {lineWords, lineWidth})
+								table.insert(lines, {{wordCharacters}, wordWidth})
+							end
+						elseif truncateEnabled and (#lines + 1)*lineHeight + size > frameHeight then
 							-- Add word to line.
 							table.insert(lineWords, wordCharacters)
 							-- Add current line.
 							table.insert(lines, {lineWords, lineWidth})
 							
-							-- Truncate.
+							-- Truncate and exit.
 							truncate()
 							truncated = true
 							break
@@ -1224,13 +1297,14 @@ local function render(frame, text, customization, frameSize)
 				end
 			end
 			
-			-- Exit if truncated.
-			if truncated then break end
-			
 			-- Update text width.
 			if lineWidth > textWidth then
 				textWidth = lineWidth
 			end
+			
+			-- Exit if truncated.
+			if truncated then break end
+			
 			-- Add current line.
 			table.insert(lines, {lineWords, lineWidth})
 			-- Reset line data.
@@ -1604,7 +1678,7 @@ local function handleDynamic(frame, text, customization)
 	end
 end
 local function disableDynamic(frame, customization)
-	-- Remove connections.
+	-- Remove connections if any.
 	local connections = frameDynamicConnections[frame]
 	if connections then
 		connections[1]:Disconnect()
@@ -1615,11 +1689,11 @@ local function disableDynamic(frame, customization)
 		end
 		frameDynamicConnections[frame] = nil
 	end
-	
-	-- Get rid of the non-true value.
-	customization.Dynamic = nil
 end
 local function correctCustomization(customization)
+	if not scaleSizeTypes[customization.ScaleSize] then
+		customization.ScaleSize = defaults.ScaleSize
+	end
 	if not scaleSizeTypes[customization.ScaleSize] then
 		-- Scale-size disabled.
 		customization.ScaleSize = nil
@@ -1627,34 +1701,39 @@ local function correctCustomization(customization)
 		customization.MaximumSize = nil
 		
 		if type(customization.Size) ~= "number" then
-			customization.Size = defaultSize
+			customization.Size = defaults.Size
 		elseif customization.Size < 1 then
 			customization.Size = 1
 		end
 	else
 		-- Scale-size enabled.
-		local minimumSize = customization.MinimumSize
-		if type(minimumSize) ~= "number" then
+		if type(customization.MinimumSize) ~= "number" then
+			customization.MinimumSize = defaults.MinimumSize
+		end
+		if type(customization.MinimumSize) ~= "number" then
 			customization.MinimumSize = nil
-		elseif minimumSize < 1 then
+		elseif customization.MinimumSize < 1 then
 			customization.MinimumSize = 1
 		end
-		local maximumSize = customization.MaximumSize
-		if type(maximumSize) ~= "number" then
+		
+		if type(customization.MaximumSize) ~= "number" then
+			customization.MaximumSize = defaults.MaximumSize
+		end
+		if type(customization.MaximumSize) ~= "number" then
 			customization.MaximumSize = nil
-		elseif maximumSize < 1 then
+		elseif customization.MaximumSize < 1 then
 			customization.MaximumSize = 1
 		end
 		
 		if type(customization.Size) ~= "number" then
-			customization.Size = defaultSize
+			customization.Size = defaults.Size
 		end
 	end
 	
 	local font = customization.Font
 	if font == nil then
-		customization.Font = defaultFont
-		textBoundsParams.Font = defaultFont
+		customization.Font = defaults.Font
+		textBoundsParams.Font = defaults.Font
 		
 		-- Limit size.
 		if customization.Size > 100 then
@@ -1667,8 +1746,8 @@ local function correctCustomization(customization)
 		local _, result = pcall(TextService.GetTextBoundsAsync, TextService, textBoundsParams)
 		if type(result) == "string" then
 			warn("Invalid font. Using default.")
-			customization.Font = defaultFont
-			textBoundsParams.Font = defaultFont
+			customization.Font = defaults.Font
+			textBoundsParams.Font = defaults.Font
 		end
 		
 		-- Limit size.
@@ -1677,10 +1756,10 @@ local function correctCustomization(customization)
 		end
 	else
 		-- Custom font.
-		if not rawCustomFonts[font] then
+		if not rawUserFonts[font] then
 			warn("Invalid font. Using default.")
-			customization.Font = defaultFont
-			textBoundsParams.Font = defaultFont
+			customization.Font = defaults.Font
+			textBoundsParams.Font = defaults.Font
 			
 			-- Limit size.
 			if customization.Size > 100 then
@@ -1691,33 +1770,33 @@ local function correctCustomization(customization)
 	
 	local lineHeight = customization.LineHeight
 	if type(lineHeight) ~= "number" then
-		customization.LineHeight = defaultLineHeight
+		customization.LineHeight = defaults.LineHeight
 	elseif lineHeight < 0 then
 		customization.LineHeight = 0
 	end
 	local characterSpacing = customization.CharacterSpacing
 	if type(characterSpacing) ~= "number" then
-		customization.CharacterSpacing = defaultCharacterSpacing
+		customization.CharacterSpacing = defaults.CharacterSpacing
 	elseif characterSpacing < 0 then
 		customization.CharacterSpacing = 0
 	end
 	
 	if typeof(customization.Color) ~= "Color3" then
-		customization.Color = defaultColor
+		customization.Color = defaults.Color
 	end
 	if type(customization.Transparency) ~= "number" then
-		customization.Transparency = defaultTransparency
+		customization.Transparency = defaults.Transparency
 	end
 	
-	if customization.Pixelated ~= true then
-		customization.Pixelated = nil
+	if type(customization.Pixelated) ~= "boolean" then
+		customization.Pixelated = defaults.Pixelated
 	end
 	
 	if typeof(customization.Offset) ~= "Vector2" then
-		customization.Offset = defaultOffset
+		customization.Offset = defaults.Offset
 	end
 	if type(customization.Rotation) ~= "number" then
-		customization.Rotation = defaultRotation
+		customization.Rotation = defaults.Rotation
 	end
 	
 	local strokeSize = customization.StrokeSize
@@ -1725,14 +1804,14 @@ local function correctCustomization(customization)
 	local strokeTransparency = customization.StrokeTransparency
 	if type(strokeSize) ~= "number" then
 		if typeof(strokeColor) == "Color3" then
-			customization.StrokeSize = defaultStrokeSize
+			customization.StrokeSize = defaults.StrokeSize
 			if type(strokeTransparency) ~= "number" then
 				customization.StrokeTransparency = customization.Transparency
 			end
 		elseif type(strokeTransparency) == "number" then
-			customization.StrokeSize = defaultStrokeSize
+			customization.StrokeSize = defaults.StrokeSize
 			if type(strokeColor) ~= "number" then
-				customization.StrokeColor = defaultStrokeColor
+				customization.StrokeColor = defaults.StrokeColor
 			end
 		else
 			customization.StrokeSize = nil
@@ -1744,7 +1823,7 @@ local function correctCustomization(customization)
 			customization.StrokeSize = 1
 		end
 		if typeof(strokeColor) ~= "Color3" then
-			customization.StrokeColor = defaultStrokeColor
+			customization.StrokeColor = defaults.StrokeColor
 		end
 		if type(strokeTransparency) ~= "number" then
 			customization.StrokeTransparency = customization.Transparency
@@ -1756,14 +1835,14 @@ local function correctCustomization(customization)
 	local shadowTransparency = customization.ShadowTransparency
 	if typeof(shadowOffset) ~= "Vector2" then
 		if typeof(shadowColor) == "Color3" then
-			customization.ShadowOffset = defaultShadowOffset
+			customization.ShadowOffset = defaults.ShadowOffset
 			if type(shadowTransparency) ~= "number" then
 				customization.ShadowTransparency = customization.Transparency
 			end
 		elseif type(shadowTransparency) == "number" then
-			customization.ShadowOffset = defaultShadowOffset
+			customization.ShadowOffset = defaults.ShadowOffset
 			if type(shadowColor) ~= "number" then
-				customization.ShadowColor = defaultShadowColor
+				customization.ShadowColor = defaults.ShadowColor
 			end
 		else
 			customization.ShadowOffset = nil
@@ -1772,29 +1851,41 @@ local function correctCustomization(customization)
 		end
 	else
 		if typeof(shadowColor) ~= "Color3" then
-			customization.ShadowColor = defaultShadowColor
+			customization.ShadowColor = defaults.ShadowColor
 		end
 		if type(shadowTransparency) ~= "number" then
 			customization.ShadowTransparency = customization.Transparency
 		end
 	end
 	
+	if type(customization.Truncate) ~= "boolean" then
+		customization.Truncate = defaults.Truncate
+	end
 	if customization.Truncate ~= true then
 		customization.Truncate = nil
 	end
 	
 	if not xAlignments[customization.XAlignment] then
-		customization.XAlignment = defaultXAlignment
+		customization.XAlignment = defaults.XAlignment
 	end
 	if not yAlignments[customization.YAlignment] then
-		customization.YAlignment = defaultYAlignment
+		customization.YAlignment = defaults.YAlignment
 	end
 	
-	if customization.WordSorting ~= true then
-		customization.WordSorting = nil
-	end
-	if customization.LineSorting ~= true then
-		customization.LineSorting = nil
+	do
+		if type(customization.WordSorting) ~= "boolean" then
+			customization.WordSorting = defaults.WordSorting
+		end
+		if customization.WordSorting ~= true then
+			customization.WordSorting = nil
+		end
+		
+		if type(customization.LineSorting) ~= "boolean" then
+			customization.LineSorting = defaults.LineSorting
+		end
+		if customization.LineSorting ~= true then
+			customization.LineSorting = nil
+		end
 	end
 end
 local function create(frame, text, customization)
@@ -1858,6 +1949,9 @@ module.Create = function(frame: Container, text: string, customization: Customiz
 		end
 		
 		-- Handle dynamic, calculate size, and render.
+		if type(customization.Dynamic) ~= "boolean" then
+			customization.Dynamic = defaults.Dynamic
+		end
 		if customization.Dynamic == true then
 			handleDynamic(frame, text, customization)
 		else
@@ -1865,6 +1959,9 @@ module.Create = function(frame: Container, text: string, customization: Customiz
 			if customization.Dynamic == false then
 				disableDynamic(frame, customization)
 			end
+			
+			-- Get rid of the non-true value.
+			customization.Dynamic = nil
 			
 			-- Create.
 			create(frame, text, customization)
@@ -1886,6 +1983,9 @@ module.Create = function(frame: Container, text: string, customization: Customiz
 			correctCustomization(customization)
 			
 			-- Handle dynamic, calculate size, and render.
+			if type(customization.Dynamic) ~= "boolean" then
+				customization.Dynamic = defaults.Dynamic
+			end
 			if customization.Dynamic == true then
 				handleDynamic(frame, text, customization)
 			else
@@ -1894,27 +1994,39 @@ module.Create = function(frame: Container, text: string, customization: Customiz
 					disableDynamic(frame, text, customization)
 				end
 				
+				-- Get rid of the non-true value.
+				customization.Dynamic = nil
+				
 				-- Create.
 				create(frame, text, customization)
 			end
 		else
 			-- Create with default customization.
 			create(frame, text, {
-				Font = defaultFont,
+				Font = defaults.Font,
 				
-				Size = defaultSize,
+				Size = defaults.Size,
 				
-				Color = defaultColor,
-				Transparency = defaultTransparency,
+				ScaleSize = defaults.ScaleSize,
+				MinimumSize = defaults.MinmumSize,
+				MaximumSize = defaults.MaximumSize,
 				
-				Offset = defaultOffset,
-				Rotation = defaultRotation,
+				Color = defaults.Color,
+				Transparency = defaults.Transparency,
 				
-				LineHeight = defaultLineHeight,
-				CharacterSpacing = defaultCharacterSpacing,
+				Offset = defaults.Offset,
+				Rotation = defaults.Rotation,
 				
-				XAlignment = defaultXAlignment,
-				YAlignment = defaultYAlignment
+				LineHeight = defaults.LineHeight,
+				CharacterSpacing = defaults.CharacterSpacing,
+				
+				XAlignment = defaults.XAlignment,
+				YAlignment = defaults.YAlignment,
+				
+				WordSorting = defaults.WordSorting,
+				LineSorting = defaults.LineSorting,
+				
+				Dynamic = defaults.Dynamic
 				
 				-- We simply don't include optional customizations.
 			})
