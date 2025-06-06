@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.17.0
+v1.18.0
 
 An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
@@ -71,8 +71,8 @@ if Signal then
 	if type(Signal) == "table" and Signal.new then Signal = Signal.new end
 end
 
-local userFonts = CollectionService:GetTagged("Fonts")[1]
-if userFonts then userFonts = require(userFonts) end
+local fonts = CollectionService:GetTagged("Fonts")[1]
+if fonts then fonts = require(fonts) end
 
 -- Customization defaults.
 local defaults = CollectionService:GetTagged("TextDefaults")[1]
@@ -185,12 +185,12 @@ local yAlignments = {
 	Justified = true
 }
 
--- Instance tables.
+-- Instance tables for recycling.
 local textLabels = {}
 local imageLabels = {}
 local uiStrokes = {}
 local folders = {}
--- Instance functions.
+-- Instance retrieve functions.
 local function getTextLabel()
 	local instance = textLabels[#textLabels]
 	if not instance then
@@ -236,13 +236,14 @@ local frameUpdateSignals = if Signal then {} else nil
 -- Roblox built-in text rendering stuff.
 local textBoundsParams = Instance.new("GetTextBoundsParams")
 textBoundsParams.Size = 100 -- Size limit for Roblox's built-in text-rendering.
+
 local characterWidthCache = {}
 
--- Create raw custom fonts table.
-local rawUserFonts = {}
+-- Table for raw fonts.
+local rawFonts = {}
 
 -- Verify and preload custom fonts if any.
-if userFonts and next(userFonts) then
+if fonts and next(fonts) then
 	local player = Players.LocalPlayer
 	local load = nil
 	if player then -- If running on client.
@@ -332,7 +333,7 @@ if userFonts and next(userFonts) then
 					table.insert(freeze, key)
 					
 					-- Insert the font into raw fonts table.
-					rawUserFonts[value] = true
+					rawFonts[value] = true
 					
 					-- Preload images.
 					if player then -- If running on client.
@@ -351,8 +352,8 @@ if userFonts and next(userFonts) then
 			table.freeze(parent[key])
 		end
 	end
-	processFonts(userFonts, "Fonts")
-	table.freeze(userFonts)
+	processFonts(fonts, "Fonts")
+	table.freeze(fonts)
 end
 
 -- Types.
@@ -370,7 +371,7 @@ export type Customization = {
 	
 	ScaleSize:
 		"RootX" | "RootY" | "RootXY" |
-	"FrameX" | "FrameY" | "FrameXY"?,
+		"FrameX" | "FrameY" | "FrameXY"?,
 	MinimumSize: number?,
 	MaximumSize: number?,
 	
@@ -836,7 +837,7 @@ local function render(frame, text, customization, frameSize)
 			local characters = font.Characters
 			
 			--[[
-			Character data:
+			Character data (table):
 			  [1] = number - Size x
 			  [2] = number - Size y
 			  [3] = Vector2 - Image offset
@@ -1104,61 +1105,47 @@ local function render(frame, text, customization, frameSize)
 	local lineWords = {}
 	local lineWidth = 0
 	
-	local truncated = false
-	local function truncate()
-		-- Access last line.
-		local line = lines[#lines]
-		local lineWords = line[1]
-		
-		-- If the line is empty, we can simply put ellipsis here.
-		if #lineWords == 0 then
-			line[2] = ellipsisWidth
+	local truncated = nil
+	local truncate = nil
+	if truncateEnabled then
+		truncated = false
+		truncate = function()
+			-- Access last line.
+			local line = lines[#lines]
+			local lineWords = line[1]
 			
-			local dot = {".", dotWidth}
-			table.insert(lineWords, {dot, dot, dot})
-			return
-		end
-		
-		-- Calculate potential line width.
-		local potentialLineWidth = ellipsisWidth
-		for _, wordCharacters in lineWords do
-			if wordCharacters then
-				for _, characterData in wordCharacters do
-					potentialLineWidth += characterData[2]
-				end
-			end
-			potentialLineWidth += spaceWidth
-		end
-		
-		-- Remove words one by one and check for space every time.
-		for index = #lineWords, 1, -1 do
-			local wordCharacters = lineWords[index]
-			
-			-- There may be empty words, caused by consecutive spaces. These we skip.
-			if not wordCharacters then
-				lineWords[index] = nil
-				potentialLineWidth -= spaceWidth
-				continue
-			end
-			
-			-- Check for space at the end of the word.
-			if potentialLineWidth < frameWidth then
-				-- Update line width cache.
-				line[2] = potentialLineWidth
+			-- If the line is empty, we can simply put ellipsis here.
+			if #lineWords == 0 then
+				line[2] = ellipsisWidth
 				
-				-- Add ellipsis and exit.
 				local dot = {".", dotWidth}
-				table.insert(wordCharacters, dot)
-				table.insert(wordCharacters, dot)
-				table.insert(wordCharacters, dot)
+				table.insert(lineWords, {dot, dot, dot})
 				return
 			end
 			
-			-- Remove characters one by one and check for space every time.
-			for index = #wordCharacters, 2, -1 do
-				potentialLineWidth -= wordCharacters[index][2]
-				wordCharacters[index] = nil
+			-- Calculate potential line width.
+			local potentialLineWidth = ellipsisWidth
+			for _, wordCharacters in lineWords do
+				if wordCharacters then
+					for _, characterData in wordCharacters do
+						potentialLineWidth += characterData[2]
+					end
+				end
+				potentialLineWidth += spaceWidth
+			end
+			
+			-- Remove words one by one and check for space every time.
+			for index = #lineWords, 1, -1 do
+				local wordCharacters = lineWords[index]
 				
+				-- There may be empty words, caused by consecutive spaces. These we skip.
+				if not wordCharacters then
+					lineWords[index] = nil
+					potentialLineWidth -= spaceWidth
+					continue
+				end
+				
+				-- Check for space at the end of the word.
 				if potentialLineWidth < frameWidth then
 					-- Update line width cache.
 					line[2] = potentialLineWidth
@@ -1170,25 +1157,43 @@ local function render(frame, text, customization, frameSize)
 					table.insert(wordCharacters, dot)
 					return
 				end
+				
+				-- Remove characters one by one and check for space every time.
+				for index = #wordCharacters, 2, -1 do
+					potentialLineWidth -= wordCharacters[index][2]
+					wordCharacters[index] = nil
+					
+					if potentialLineWidth < frameWidth then
+						-- Update line width cache.
+						line[2] = potentialLineWidth
+						
+						-- Add ellipsis and exit.
+						local dot = {".", dotWidth}
+						table.insert(wordCharacters, dot)
+						table.insert(wordCharacters, dot)
+						table.insert(wordCharacters, dot)
+						return
+					end
+				end
+				
+				-- Subtract remaining word width from potential, and remove word.
+				potentialLineWidth -= spaceWidth + wordCharacters[1][2]
+				lineWords[index] = nil
 			end
 			
-			-- Subtract remaining word width from potential, and remove word.
-			potentialLineWidth -= spaceWidth + wordCharacters[1][2]
-			lineWords[index] = nil
-		end
-		
-		-- If last line, then we have no option but to put the ellipsis here.
-		if #lines == 1 then
-			line[2] = ellipsisWidth
+			-- If last line, then we have no option but to put the ellipsis here.
+			if #lines == 1 then
+				line[2] = ellipsisWidth
+				
+				local dot = {".", dotWidth}
+				table.insert(lineWords, {dot, dot, dot})
+				return
+			end
 			
-			local dot = {".", dotWidth}
-			table.insert(lineWords, {dot, dot, dot})
-			return
+			-- Remove this line, and repeat truncation procedure on next line.
+			lines[#lines] = nil
+			truncate()
 		end
-		
-		-- Remove this line, and repeat truncation procedure on next line.
-		lines[#lines] = nil
-		truncate()
 	end
 	
 	for line in text:gmatch("[^\n]+") do
@@ -1232,46 +1237,12 @@ local function render(frame, text, customization, frameSize)
 					
 					if lineWidth + wordWidth > frameWidth then
 						-- Update text width.
-						if lineWidth > textWidth then
+						if lineWidth < frameWidth and lineWidth > textWidth then
 							textWidth = lineWidth
 						end
 						
 						-- Truncate if necessary.
-						if truncateEnabled and wordWidth >= frameWidth then
-							-- Remove characters one by one and check for space every time.
-							local foundSpace = false
-							wordWidth += ellipsisWidth
-							for index = #wordCharacters, 2, -1 do
-								wordWidth -= wordCharacters[index][2]
-								wordCharacters[index] = nil
-								
-								if wordWidth < frameWidth then
-									-- Add ellipsis and exit.
-									local dot = {".", dotWidth}
-									table.insert(wordCharacters, dot)
-									table.insert(wordCharacters, dot)
-									table.insert(wordCharacters, dot)
-									
-									foundSpace = true
-									break
-								end
-							end
-							
-							-- Replace word with ellipsis if no space.
-							if not foundSpace then
-								local dot = {".", dotWidth}
-								wordCharacters = {dot, dot, dot}
-								wordWidth = ellipsisWidth
-							end
-							
-							-- Add line(s).
-							if #lineWords == 0 then
-								table.insert(lines, {{wordCharacters}, wordWidth})
-							else
-								table.insert(lines, {lineWords, lineWidth})
-								table.insert(lines, {{wordCharacters}, wordWidth})
-							end
-						elseif truncateEnabled and (#lines + 1)*lineHeight + size > frameHeight then
+						if truncateEnabled and (#lines + 1)*lineHeight + size > frameHeight then
 							-- Add word to line.
 							table.insert(lineWords, wordCharacters)
 							-- Add current line.
@@ -1310,6 +1281,53 @@ local function render(frame, text, customization, frameSize)
 			-- Reset line data.
 			lineWords = {}
 			lineWidth = 0
+		end
+	end
+	
+	if truncateEnabled then
+		for _, line in lines do
+			local lineWidth = line[2]
+			
+			if lineWidth >= frameWidth then -- Only possible if line consists of just one word.
+				-- Grab first (and only) word in the line.
+				local wordCharacters = line[1][1]
+				
+				-- Add ellipsis width.
+				lineWidth += ellipsisWidth
+				
+				-- Remove characters one by one and check for space every time.
+				local foundSpace = false
+				for index = #wordCharacters, 2, -1 do
+					lineWidth -= wordCharacters[index][2]
+					wordCharacters[index] = nil
+					
+					if lineWidth < frameWidth then
+						-- Add ellipsis and exit.
+						local dot = {".", dotWidth}
+						table.insert(wordCharacters, dot)
+						table.insert(wordCharacters, dot)
+						table.insert(wordCharacters, dot)
+						
+						foundSpace = true
+						break
+					end
+				end
+				
+				-- Replace word with ellipsis if no space.
+				if not foundSpace then
+					local dot = {".", dotWidth}
+					line[1][1] = {dot, dot, dot}
+					lineWidth = ellipsisWidth
+				end
+				
+				-- Update text width.
+				if lineWidth > textWidth then
+					textWidth = lineWidth
+				end
+				
+				-- Update line width.
+				line[2] = lineWidth
+			end
 		end
 	end
 	
@@ -1502,15 +1520,49 @@ local function handleDynamic(frame, text, customization)
 					-- Ensure a parent.
 					if not parent then break end
 					
-					-- Get size.
+					-- Get size and listen for grid changes.
 					local grid = parent:FindFirstChildOfClass("UIGridLayout")
+					local function onGridAddition()
+						-- Listen for grid size change.
+						ancestorConnections[0] = grid:GetPropertyChangedSignal("CellSize"):Connect(update)
+						
+						-- Listen for removal.
+						local function onGridRemoval()
+							ancestorConnections[0]:Disconnect()
+							ancestorConnections[0] = parent.ChildAdded:Connect(function(instance)
+								if instance:IsA("UIGridLayout") then
+									ancestorConnections[0]:Disconnect()
+									onGridAddition()
+								end
+							end)
+							ancestorConnections[-1]:Disconnect()
+							ancestorConnections[-1] = nil
+							ancestorConnections[-2]:Disconnect()
+							ancestorConnections[-2] = nil
+							
+							update()
+						end
+						ancestorConnections[-1] = grid.Destroying:Connect(onGridRemoval)
+						ancestorConnections[-2] = grid.AncestryChanged:Connect(function()
+							if not grid.Parent then
+								onGridRemoval()
+							end
+						end)
+					end
 					local size = nil
 					if grid then
 						size = grid.CellSize
-						-- Connect to size changed.
-						table.insert(ancestorConnections, grid:GetPropertyChangedSignal("CellSize"):Connect(update))
+						
+						onGridAddition()
 					else
 						size = instance.Size
+						
+						ancestorConnections[0] = parent.ChildAdded:Connect(function(instance)
+							if instance:IsA("UIGridLayout") then
+								ancestorConnections[0]:Disconnect()
+								onGridAddition()
+							end
+						end)
 					end
 					local x = size.X
 					local y = size.Y
@@ -1580,7 +1632,7 @@ local function handleDynamic(frame, text, customization)
 						
 						frameSurfaceGuiSizes[frame] = Vector2.new(rootSizeX, rootSizeY)
 						
-						-- Listen to changes.
+						-- Listen for changes.
 						do
 							local connection = nil
 							if instance.SizingMode == Enum.SurfaceGuiSizingMode.PixelsPerStud then
@@ -1588,7 +1640,7 @@ local function handleDynamic(frame, text, customization)
 							else
 								connection = instance:GetPropertyChangedSignal("CanvasSize"):Connect(update)
 							end
-							ancestorConnections[0] = connection
+							ancestorConnections[-3] = connection
 							table.insert(ancestorConnections, instance:GetPropertyChangedSignal("SizingMode"):Connect(function()
 								connection:Disconnect()
 								if instance.SizingMode == Enum.SurfaceGuiSizingMode.PixelsPerStud then
@@ -1596,13 +1648,13 @@ local function handleDynamic(frame, text, customization)
 								else
 									connection = instance:GetPropertyChangedSignal("CanvasSize"):Connect(update)
 								end
-								ancestorConnections[0] = connection
+								ancestorConnections[-3] = connection
 								update()
 							end))
 						end
 						do
 							local connection = adornee:GetPropertyChangedSignal("Size"):Connect(update)
-							ancestorConnections[-1] = connection
+							ancestorConnections[-4] = connection
 							table.insert(ancestorConnections, instance:GetPropertyChangedSignal("Adornee"):Connect(function()
 								connection:Disconnect()
 								adornee = instance.Adornee
@@ -1611,7 +1663,7 @@ local function handleDynamic(frame, text, customization)
 								else
 									connection = nil
 								end
-								ancestorConnections[-1] = connection
+								ancestorConnections[-4] = connection
 								update()
 							end))
 						end
@@ -1756,7 +1808,7 @@ local function correctCustomization(customization)
 		end
 	else
 		-- Custom font.
-		if not rawUserFonts[font] then
+		if not rawFonts[font] then
 			warn("Invalid font. Using default.")
 			customization.Font = defaults.Font
 			textBoundsParams.Font = defaults.Font
