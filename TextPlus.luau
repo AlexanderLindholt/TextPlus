@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.19.0
+v1.20.0
 
 An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
@@ -77,8 +77,6 @@ if fonts then fonts = require(fonts) end
 local camera = workspace.CurrentCamera
 
 local missingCharacter = "rbxassetid://75989824347198" -- Is used when a character is missing in a custom font.
-
-local guiInset = GuiService:GetGuiInset()
 
 -- Lists for validity checks.
 local customizationOptions = {
@@ -168,7 +166,7 @@ local defaults = {
 	LineHeight = 1,
 	CharacterSpacing = 1,
 	
-	Truncate = true, 
+	Truncate = false, 
 	
 	XAlignment = "Left",
 	YAlignment = "Top",
@@ -428,7 +426,6 @@ export type Customization = {
 	
 	Dynamic: boolean?
 }
-type Container = Frame | ScrollingFrame | CanvasGroup
 
 -- Module.
 local module = {}
@@ -436,9 +433,9 @@ local module = {}
 --[[
 Gets the raw text string for a frame.
 ]]--
-module.GetText = function(frame: Container): Customization
+module.GetText = function(frame: GuiObject): Customization
 	-- Argument errors.
-	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame provided.", 2) end
+	if typeof(frame) ~= "Instance" or not frame:IsA("GuiObject") then error("No frame provided.", 2) end
 	
 	-- Get and return text.
 	return frameText[frame]
@@ -446,9 +443,9 @@ end
 --[[
 Gets the customization for a frame.
 ]]--
-module.GetCustomization = function(frame: Container): Customization
+module.GetCustomization = function(frame: GuiObject): Customization
 	-- Argument errors.
-	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame provided.", 2) end
+	if typeof(frame) ~= "Instance" or not frame:IsA("GuiObject") then error("No frame provided.", 2) end
 	
 	-- Get and return customization.
 	return frameCustomizations[frame]
@@ -457,9 +454,9 @@ end
 Gets the text bounds of a frame.
 Returns <code>Vector2.zero</code> if not found.
 ]]--
-module.GetTextBounds = function(frame: Container): Vector2
+module.GetTextBounds = function(frame: GuiObject): Vector2
 	-- Argument errors.
-	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame provided.", 2) end
+	if typeof(frame) ~= "Instance" or not frame:IsA("GuiObject") then error("No frame provided.", 2) end
 	
 	-- Get and return text bounds.
 	return frameTextBounds[frame] or Vector2.zero
@@ -474,9 +471,9 @@ Returns an iterator function for looping through all characters in the specified
 <em>Ignores sorting folders.
 Works with any sorting.</em>
 ]]--
-module.GetCharacters = function(frame: Container): {TextLabel | ImageLabel}
+module.GetCharacters = function(frame: GuiObject): {TextLabel | ImageLabel}
 	-- Argument errors.
-	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame provided.", 2) end
+	if typeof(frame) ~= "Instance" or not frame:IsA("GuiObject") then error("No frame provided.", 2) end
 	
 	-- Get and verify customization.
 	local customization = frameCustomizations[frame]
@@ -541,9 +538,9 @@ end
 --[[
 Returns the update signal for the specified frame.
 ]]--
-module.GetUpdateSignal = function(frame: Container, signal: string)
+module.GetUpdateSignal = function(frame: GuiObject, signal: string)
 	-- Argument errors.
-	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame provided.", 2) end
+	if typeof(frame) ~= "Instance" or not frame:IsA("GuiObject") then error("No frame provided.", 2) end
 	
 	-- Get and return signal.
 	return frameUpdateSignals[frame]
@@ -598,6 +595,7 @@ local function calculateAbsoluteSize(frame)
 				rootSizeX = viewportSize.X
 				rootSizeY = viewportSize.Y
 			else
+				local guiInset = GuiService:GetGuiInset()
 				rootSizeX = viewportSize.X - guiInset.X
 				rootSizeY = viewportSize.Y - guiInset.Y
 			end
@@ -670,7 +668,10 @@ local function clear(frame)
 	end
 	
 	-- Identify sorting.
-	if customization.LineSorting and customization.WordSorting then -- Full sorting.
+	local lineSorting = customization.LineSorting
+	local wordSorting = customization.WordSorting
+	
+	if lineSorting and wordSorting then -- Full sorting.
 		-- Loop through lines.
 		for _, line in frame:GetChildren() do
 			-- Verify instance.
@@ -716,7 +717,7 @@ local function clear(frame)
 				end
 			end
 		end
-	elseif customization.LineSorting or customization.WordSorting then -- One sorting.
+	elseif lineSorting or wordSorting then -- One sorting.
 		-- Loop through words/lines.
 		for _, folder in frame:GetChildren() do
 			-- Verify instance.
@@ -801,7 +802,7 @@ local function render(frame, text, customization, frameSize)
 	local scaleSize = customization.ScaleSize
 	if scaleSize then
 		-- Scale size.
-		if scaleSize:sub(1, 4) == "Root" then
+		if scaleSize:sub(1, 4) == "Root" then -- If relative to root.
 			local surfaceGuiSize = frameSurfaceGuiSizes[frame]
 			if surfaceGuiSize then -- SurfaceGui.
 				if scaleSize == "RootX" then
@@ -821,7 +822,7 @@ local function render(frame, text, customization, frameSize)
 					size = size*0.01*(viewportSize.X + viewportSize.Y)/2
 				end
 			end
-		else -- Frame.
+		else -- Relative to frame.
 			if scaleSize == "FrameX" then
 				size = size*0.01*frameWidth
 			elseif scaleSize == "FrameY" then
@@ -851,6 +852,7 @@ local function render(frame, text, customization, frameSize)
 			end
 		end
 	end
+	size = math.floor(size) -- Same behaviour of TextLabels.
 	
 	local color = customization.Color
 	local transparency = customization.Transparency
@@ -858,7 +860,7 @@ local function render(frame, text, customization, frameSize)
 	local pixelated = customization.Pixelated
 	
 	local offset = customization.Offset
-	offset = UDim2.fromOffset(offset.X*0.01*size, offset.Y*0.01*size) -- Convert Vector2 to UDim2, get the offset relative to size (percentage).
+	      offset = UDim2.fromOffset(offset.X*0.01*size, offset.Y*0.01*size) -- Convert Vector2 to UDim2, get the offset relative to size (percentage).
 	local rotation = customization.Rotation
 	
 	local shadowOffset = customization.ShadowOffset
@@ -899,7 +901,7 @@ local function render(frame, text, customization, frameSize)
 				return if data then
 					data[6]*size*characterSpacing
 					else -- Missing character.
-					size -- The 'missing' character is square, so height ('size') and width is the same.
+					size*characterSpacing -- The 'missing' character is square, so height ('size') and width is the same.
 			end
 			if shadowOffset then
 				-- Shadow.
@@ -1045,7 +1047,7 @@ local function render(frame, text, customization, frameSize)
 				end
 				return width*size*characterSpacing
 			end
-			if shadowOffset then
+			if shadowOffset then -- If shadow enabled then.
 				-- Shadow.
 				shadowOffset = UDim2.fromOffset(shadowOffset.X*0.01*size, shadowOffset.Y*0.01*size) -- Convert Vector2 to UDim2.
 				local shadowColor = customization.ShadowColor
@@ -1527,8 +1529,6 @@ local function handleDynamic(frame, text, customization)
 		-- Setup dynamic stuff.
 		local ancestorConnections = {}
 		local function update()
-			--local start = os.clock()
-			
 			-- Clear current text.
 			clear(frame)
 			
@@ -1544,8 +1544,6 @@ local function handleDynamic(frame, text, customization)
 			else
 				render(frame, text, frameCustomizations[frame], size)
 			end
-			
-			--print(os.clock() - start)
 		end
 		local function fullUpdate()
 			local text = frameText[frame]
@@ -1642,6 +1640,7 @@ local function handleDynamic(frame, text, customization)
 							rootSizeX = viewportSize.X
 							rootSizeY = viewportSize.Y
 						else
+							local guiInset = GuiService:GetGuiInset()
 							rootSizeX = viewportSize.X - guiInset.X
 							rootSizeY = viewportSize.Y - guiInset.Y
 						end
@@ -2023,10 +2022,10 @@ If text is already present, it will overwrite text and merge customizations.
 
 <strong>frame</strong>: The container and bounding box.
 ]]--
-module.Create = function(frame: Container, text: string, customization: Customization?)
+module.Create = function(frame: GuiObject, text: string, customization: Customization?)
 	-- Argument errors.
 	if type(text) ~= "string" then error("No text provided.", 2) end
-	if typeof(frame) ~= "Instance" or not (frame:IsA("Frame") or frame:IsA("ScrollingFrame") or frame:IsA("CanvasGroup")) then error("No frame provided.", 2) end
+	if typeof(frame) ~= "Instance" or not frame:IsA("GuiObject") then error("No frame provided.", 2) end
 	
 	-- Handle customization.
 	if frameCustomizations[frame] then
