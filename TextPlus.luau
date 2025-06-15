@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.18.0
+v1.19.0
 
 An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
@@ -73,48 +73,6 @@ end
 
 local fonts = CollectionService:GetTagged("Fonts")[1]
 if fonts then fonts = require(fonts) end
-
--- Customization defaults.
-local defaults = CollectionService:GetTagged("TextDefaults")[1]
-if defaults then
-	defaults = require(defaults)
-else
-	-- Default defaults.
-	defaults = {
-		Font = Font.new("rbxasset://fonts/families/SourceSansPro.json"),
-		
-		Size = 14,
-		
-		ScaleSize = nil,
-		MinimumSize = nil,
-		MaximumSize = nil,
-		
-		Color = Color3.fromRGB(0, 0, 0),
-		Transparency = 0,
-		
-		Offset = Vector2.zero,
-		Rotation = 0,
-		
-		StrokeSize = 5,
-		StrokeColor = Color3.fromRGB(0, 0, 0),
-		
-		ShadowOffset = Vector2.new(0, 20),
-		ShadowColor = Color3.fromRGB(50, 50, 50),
-		
-		LineHeight = 1,
-		CharacterSpacing = 1,
-		
-		Truncate = true, 
-		
-		XAlignment = "Left",
-		YAlignment = "Top",
-		
-		WordSorting = false,
-		LineSorting = false,
-		
-		Dynamic = false
-	}
-end
 
 local camera = workspace.CurrentCamera
 
@@ -185,42 +143,97 @@ local yAlignments = {
 	Justified = true
 }
 
+-- Customization defaults.
+local defaults = {
+	Font = Font.new("rbxasset://fonts/families/SourceSansPro.json"),
+	
+	Size = 14,
+	
+	ScaleSize = nil,
+	MinimumSize = nil,
+	MaximumSize = nil,
+	
+	Color = Color3.fromRGB(0, 0, 0),
+	Transparency = 0,
+	
+	Offset = Vector2.zero,
+	Rotation = 0,
+	
+	StrokeSize = 5,
+	StrokeColor = Color3.fromRGB(0, 0, 0),
+	
+	ShadowOffset = Vector2.new(0, 20),
+	ShadowColor = Color3.fromRGB(50, 50, 50),
+	
+	LineHeight = 1,
+	CharacterSpacing = 1,
+	
+	Truncate = true, 
+	
+	XAlignment = "Left",
+	YAlignment = "Top",
+	
+	WordSorting = false,
+	LineSorting = false,
+	
+	Dynamic = false
+}
+local userDefaults = CollectionService:GetTagged("TextDefaults")[1]
+if userDefaults then
+	userDefaults = require(userDefaults)
+	if type(userDefaults) == "table" then
+		for key in userDefaults do
+			if customizationOptions[key] then
+				defaults[key] = userDefaults[key]
+			end
+		end
+	end
+end
+
 -- Instance tables for recycling.
-local textLabels = {}
-local imageLabels = {}
-local uiStrokes = {}
-local folders = {}
+local textLabelsAmount, textLabels = 0, {}
+local imageLabelsAmount, imageLabels = 0, {}
+local uiStrokesAmount, uiStrokes = 0, {}
+local foldersAmount, folders = 0, {}
 -- Instance retrieve functions.
 local function getTextLabel()
-	local instance = textLabels[#textLabels]
+	local instance = textLabels[textLabelsAmount]
 	if not instance then
+		textLabelsAmount += 1
 		return Instance.new("TextLabel")
 	end
-	textLabels[#textLabels] = nil
+	textLabels[textLabelsAmount] = nil
+	textLabelsAmount -= 1
 	return instance
 end
 local function getImageLabel()
-	local instance = imageLabels[#imageLabels]
+	local instance = imageLabels[imageLabelsAmount]
 	if not instance then
+		imageLabelsAmount += 1
 		return Instance.new("ImageLabel")
 	end
-	imageLabels[#imageLabels] = nil
+	imageLabels[imageLabelsAmount] = nil
+	imageLabelsAmount -= 1
 	return instance
 end
 local function getUIStroke()
-	local instance = uiStrokes[#uiStrokes]
+	local instance = uiStrokes[uiStrokesAmount]
 	if not instance then
+		uiStrokesAmount += 1
 		return Instance.new("UIStroke")
 	end
-	uiStrokes[#uiStrokes] = nil
+	uiStrokes[uiStrokesAmount] = nil
+	uiStrokesAmount -= 1
 	return instance
 end
 local function getFolder()
-	local instance = folders[#folders]
+	local instance = folders[foldersAmount]
 	if not instance then
+		foldersAmount += 1
 		return Instance.new("Folder")
 	end
-	folders[#folders] = nil
+	folders[foldersAmount] = nil
+	foldersAmount -= 1
 	return instance
 end
 
@@ -239,121 +252,132 @@ textBoundsParams.Size = 100 -- Size limit for Roblox's built-in text-rendering.
 
 local characterWidthCache = {}
 
--- Table for raw fonts.
+-- Table for raw user fonts.
 local rawFonts = {}
 
--- Verify and preload custom fonts if any.
-if fonts and next(fonts) then
-	local player = Players.LocalPlayer
-	local load = nil
-	if player then -- If running on client.
-		local screenGui = Instance.new("ScreenGui")
-		screenGui.Parent = player.PlayerGui
-		
-		local loading = 0
-		load = function(image) -- For preloading the font image assets.
-			loading += 1
-			
-			local label = Instance.new("ImageLabel")
-			label.Size = UDim2.fromOffset(1, 1)
-			label.BackgroundTransparency = 1
-			label.ImageTransparency = 0.999 -- Trick to make the image invisible and still have it be loaded.
-			label.ResampleMode = Enum.ResamplerMode.Pixelated
-			label.Image = "rbxassetid://"..tostring(image)
-			label.Parent = screenGui
-			
-			coroutine.resume(coroutine.create(function()
-				repeat
-					task.wait()
-				until label.IsLoaded
+-- Verify and preload user fonts if any.
+if fonts then
+	if type(fonts) ~= "table" then
+		warn("Font data is not a table.")
+	else
+		if not next(fonts) then
+			warn("Font data table is empty.")
+		else
+			local player = Players.LocalPlayer
+			local load = nil
+			if player then -- If running on client.
+				local screenGui = Instance.new("ScreenGui")
+				screenGui.Parent = player.PlayerGui
 				
-				if loading == 1 then
-					screenGui:Destroy()
-				else
-					loading -= 1
-				end
-			end))
-		end
-	end
-	local function handleCharacters(characters, size)
-		local invertedFontSize = 1/size -- To avoid expensive division.
-		
-		for key, value in characters do
-			-- Verify format.
-			if type(key) ~= "string" then return end
-			if type(value) ~= "table" then return end
-			if type(value[1]) ~= "number" then return end
-			if type(value[2]) ~= "number" then return end
-			if typeof(value[3]) ~= "Vector2" then return end
-			if type(value[4]) ~= "number" then return end
-			if type(value[5]) ~= "number" then return end
-			if type(value[6]) ~= "number" then return end
-			
-			-- Precalculate normalized offset and x-advance.
-			value[4] *= invertedFontSize
-			value[5] *= invertedFontSize
-			value[6] *= invertedFontSize
-		end
-		
-		return true
-	end
-	local function processFonts(parent, parentPath)
-		local remove = {} -- Because immediate removal will throw off the loop.
-		local freeze = {} -- Because freezing before removal will not allow for removal.
-		for key, value in parent do
-			if type(value) ~= "table" then
-				table.insert(remove, key)
-			else
-				local currentPath = parentPath.."."..key
-				
-				if value.Image or value.Size or value.Characters then
-					-- Verify format.
-					if type(value.Image) ~= "number" then
-						warn("Missing an image id at '"..currentPath.."'.")
-						table.insert(remove, key)
-						continue
-					end
-					if type(value.Size) ~= "number" then
-						warn("Missing a size at '"..currentPath.."'.")
-						table.insert(remove, key)
-						continue
-					end
-					if type(value.Characters) ~= "table" then
-						warn("Missing characters at '"..currentPath.."'.")
-						table.insert(remove, key)
-						continue
-					end
-					if not handleCharacters(value.Characters, value.Size) then
-						warn("Invalid characters at '"..currentPath.."'.")
-						table.insert(remove, key)
-						continue
-					end
+				local loading = 0
+				load = function(image) -- For preloading the font image assets.
+					-- Increment counter for currently loading images.
+					loading += 1
 					
-					-- Insert for later freeze.
-					table.insert(freeze, key)
+					-- Setup image label for loading the current font.
+					local label = Instance.new("ImageLabel")
+					label.Size = UDim2.fromOffset(1, 1) -- As small as possible.
+					label.BackgroundTransparency = 1
+					label.ImageTransparency = 0.999 -- Trick to make the image invisible and still have it be loaded.
+					label.ResampleMode = Enum.ResamplerMode.Pixelated
+					label.Image = "rbxassetid://"..tostring(image)
+					label.Parent = screenGui -- It's crucial that we put it in a visible ScreenGui, otherwise it won't be loaded.
 					
-					-- Insert the font into raw fonts table.
-					rawFonts[value] = true
-					
-					-- Preload images.
-					if player then -- If running on client.
-						load(value.Image)
-					end
-				else
-					processFonts(value, currentPath)
-					table.freeze(value)
+					-- Detect load.
+					coroutine.resume(coroutine.create(function()
+						repeat
+							task.wait()
+						until label.IsLoaded
+						
+						if loading == 1 then
+							screenGui:Destroy()
+						else
+							loading -= 1
+						end
+					end))
 				end
 			end
-		end
-		for _, key in remove do
-			parent[key] = nil
-		end
-		for _, key in freeze do
-			table.freeze(parent[key])
+			local function handleCharacters(characters, size)
+				local invertedFontSize = 1/size -- To avoid expensive division.
+				
+				for key, value in characters do
+					-- Verify format.
+					if type(key) ~= "string" then return end
+					if type(value) ~= "table" then return end
+					if type(value[1]) ~= "number" then return end
+					if type(value[2]) ~= "number" then return end
+					if typeof(value[3]) ~= "Vector2" then return end
+					if type(value[4]) ~= "number" then return end
+					if type(value[5]) ~= "number" then return end
+					if type(value[6]) ~= "number" then return end
+					
+					-- Precalculate normalized offset and x-advance.
+					value[4] *= invertedFontSize
+					value[5] *= invertedFontSize
+					value[6] *= invertedFontSize
+				end
+				
+				return true
+			end
+			local function processFonts(parent, parentPath)
+				local remove = {} -- Because immediate removal will throw off the loop.
+				local freeze = {} -- Because freezing before removal will not allow for removal.
+				for key, value in parent do
+					if type(value) ~= "table" then
+						table.insert(remove, key)
+					else
+						local currentPath = parentPath.."."..key
+						
+						if value.Image or value.Size or value.Characters then
+							-- Verify format.
+							if type(value.Image) ~= "number" then
+								warn("Missing an image id at '"..currentPath.."'.")
+								table.insert(remove, key)
+								continue
+							end
+							if type(value.Size) ~= "number" then
+								warn("Missing a size at '"..currentPath.."'.")
+								table.insert(remove, key)
+								continue
+							end
+							if type(value.Characters) ~= "table" then
+								warn("Missing characters at '"..currentPath.."'.")
+								table.insert(remove, key)
+								continue
+							end
+							if not handleCharacters(value.Characters, value.Size) then -- If not valid characters then.
+								warn("Invalid characters at '"..currentPath.."'.")
+								table.insert(remove, key)
+								continue
+							end
+							
+							-- Insert for later freeze.
+							table.insert(freeze, key)
+							
+							-- Insert the font into raw fonts table.
+							rawFonts[value] = true
+							
+							-- Preload images.
+							if player then -- If running on client.
+								load(value.Image)
+							end
+						else
+							processFonts(value, currentPath)
+							table.freeze(value)
+						end
+					end
+				end
+				for _, key in remove do
+					parent[key] = nil
+				end
+				for _, key in freeze do
+					table.freeze(parent[key])
+				end
+			end
+			processFonts(fonts, "Fonts")
+			table.freeze(fonts)
 		end
 	end
-	processFonts(fonts, "Fonts")
-	table.freeze(fonts)
 end
 
 -- Types.
@@ -678,8 +702,16 @@ local function clear(frame)
 					-- Remove and store the main character if this is a shadow.
 					local main = character:FindFirstChildOfClass(characterClass)
 					if main then
+						-- Remove and store the main character instance.
 						main.Parent = nil
 						table.insert(characterTable, main)
+						
+						-- Remove and store the main character's stroke if existent.
+						local uiStroke = main:FindFirstChildOfClass("UIStroke")
+						if uiStroke then
+							uiStroke.Parent = nil
+							table.insert(uiStrokes, uiStroke)
+						end
 					end
 				end
 			end
@@ -710,8 +742,16 @@ local function clear(frame)
 				-- Remove and store the main character if this is a shadow.
 				local main = character:FindFirstChildOfClass(characterClass)
 				if main then
+					-- Remove and store the main character instance.
 					main.Parent = nil
 					table.insert(characterTable, main)
+					
+					-- Remove and store the main character's stroke if existent.
+					local uiStroke = main:FindFirstChildOfClass("UIStroke")
+					if uiStroke then
+						uiStroke.Parent = nil
+						table.insert(uiStrokes, uiStroke)
+					end
 				end
 			end
 		end
@@ -735,8 +775,16 @@ local function clear(frame)
 			-- Remove and store the main character if this is a shadow.
 			local main = character:FindFirstChildOfClass(characterClass)
 			if main then
+				-- Remove and store the main character instance.
 				main.Parent = nil
 				table.insert(characterTable, main)
+				
+				-- Remove and store the main character's stroke if existent.
+				local uiStroke = main:FindFirstChildOfClass("UIStroke")
+				if uiStroke then
+					uiStroke.Parent = nil
+					table.insert(uiStrokes, uiStroke)
+				end
 			end
 		end
 	end
@@ -787,7 +835,7 @@ local function render(frame, text, customization, frameSize)
 		if size < 1 then
 			size = 1
 		else
-			-- Apply provided limits.
+			-- Custom limits.
 			local minimumSize = customization.MinimumSize
 			if minimumSize and customization.Size < minimumSize then
 				customization.Size = minimumSize
@@ -1369,6 +1417,7 @@ local function render(frame, text, customization, frameSize)
 	local globalCharacterCount = 0 -- In case no sorting is enabled.
 	
 	for lineIndex, lineData in lines do
+		-- Get and cache current line's words.
 		local words = lineData[1]
 		
 		-- Horizontal alignment.
@@ -1478,6 +1527,8 @@ local function handleDynamic(frame, text, customization)
 		-- Setup dynamic stuff.
 		local ancestorConnections = {}
 		local function update()
+			--local start = os.clock()
+			
 			-- Clear current text.
 			clear(frame)
 			
@@ -1493,6 +1544,8 @@ local function handleDynamic(frame, text, customization)
 			else
 				render(frame, text, frameCustomizations[frame], size)
 			end
+			
+			--print(os.clock() - start)
 		end
 		local function fullUpdate()
 			local text = frameText[frame]
@@ -1560,6 +1613,8 @@ local function handleDynamic(frame, text, customization)
 						ancestorConnections[0] = parent.ChildAdded:Connect(function(instance)
 							if instance:IsA("UIGridLayout") then
 								ancestorConnections[0]:Disconnect()
+								grid = instance
+								update()
 								onGridAddition()
 							end
 						end)
@@ -2072,6 +2127,8 @@ module.Create = function(frame: Container, text: string, customization: Customiz
 				LineHeight = defaults.LineHeight,
 				CharacterSpacing = defaults.CharacterSpacing,
 				
+				Truncate = defaults.Truncate,
+				
 				XAlignment = defaults.XAlignment,
 				YAlignment = defaults.YAlignment,
 				
@@ -2079,8 +2136,6 @@ module.Create = function(frame: Container, text: string, customization: Customiz
 				LineSorting = defaults.LineSorting,
 				
 				Dynamic = defaults.Dynamic
-				
-				-- We simply don't include optional customizations.
 			})
 		end
 	end
