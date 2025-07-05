@@ -5,7 +5,11 @@ icon: list
 # Customization options
 
 {% hint style="success" %}
-The following defaults can be overwritten by [custom defaults](custom-defaults.md).
+The (most of the) following defaults can be overwritten by [custom defaults](custom-defaults.md).
+{% endhint %}
+
+{% hint style="warning" %}
+Defaults marked with _italic can't be overwritten by custom defaults._
 {% endhint %}
 
 {% hint style="info" %}
@@ -48,14 +52,14 @@ _**All****&#x20;****`nil`****&#x20;****by default, but if 1 or more of them are 
 * <mark style="color:yellow;">**StrokeColor:**</mark> <mark style="color:yellow;"></mark><mark style="color:yellow;">Color3</mark>\
   &#xNAN;_<mark style="color:yellow;">Default:</mark>_ <mark style="color:yellow;"></mark><mark style="color:yellow;">`Color3.fromRGB(0, 0, 0)`</mark>
 * <mark style="color:yellow;">**StrokeTransparency:**</mark> <mark style="color:yellow;"></mark><mark style="color:yellow;">number</mark>\
-  &#xNAN;_<mark style="color:yellow;">Default:</mark>_ <mark style="color:yellow;"></mark><mark style="color:yellow;">`Transparency`</mark>\
+  &#xNAN;_<mark style="color:yellow;">Default:</mark> <mark style="color:yellow;"></mark><mark style="color:yellow;">`Transparency`</mark>_\
   ​
 * <mark style="color:purple;">**ShadowOffset:**</mark> <mark style="color:purple;"></mark><mark style="color:purple;">Vector2</mark>\
   &#xNAN;_<mark style="color:purple;">Default:</mark>_ <mark style="color:purple;"></mark><mark style="color:purple;">`Vector2.new(0, 20)`</mark>
 * <mark style="color:purple;">**ShadowColor:**</mark> <mark style="color:purple;"></mark><mark style="color:purple;">Color3</mark>\
   &#xNAN;_<mark style="color:purple;">Default:</mark>_ <mark style="color:purple;"></mark><mark style="color:purple;">`Color3.fromRGB(50, 50, 50)`</mark>
 * <mark style="color:purple;">**ShadowTransparency:**</mark> <mark style="color:purple;"></mark><mark style="color:purple;">number</mark>\
-  &#xNAN;_<mark style="color:purple;">Default:</mark>_ <mark style="color:purple;"></mark><mark style="color:purple;">`Transparency`</mark>\
+  &#xNAN;_<mark style="color:purple;">Default:</mark> <mark style="color:purple;"></mark><mark style="color:purple;">`Transparency`</mark>_\
   ​
 * **LineHeight:** number\
   &#xNAN;_&#x44;efault:_ `1`
