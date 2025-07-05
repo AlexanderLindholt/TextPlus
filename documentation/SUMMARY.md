@@ -10,6 +10,7 @@
 * [Customization](fundamentals/customization/README.md)
   * [Customization options](fundamentals/customization/customization-options.md)
   * [Fonts](fundamentals/customization/fonts.md)
+  * [Pixelated](fundamentals/customization/pixelated.md)
   * [Scale-size](fundamentals/customization/scale-size/README.md)
     * [Minimum- and maximum-size](fundamentals/customization/scale-size/minimum-and-maximum-size.md)
   * [Truncation](fundamentals/customization/truncation.md)
