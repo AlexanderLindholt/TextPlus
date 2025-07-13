@@ -4,4 +4,4 @@
 
 It expects a boolean.
 
-Enabling dynamic will enable automatic re-rendering for when the text container's size is updated in (almost) any way.
+Enabling dynamic will enable automatic re-rendering for when the text frame's size is updated.
