@@ -86,4 +86,4 @@ _**All****&#x20;****`nil`****&#x20;****by default, but if 1 or more of them are 
 
 
 
-**Some of the advanced customization options are described in detail on the next few pages.**
+**Some of the customization options are described in detail on the next few pages.**
