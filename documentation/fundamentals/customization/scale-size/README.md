@@ -13,12 +13,16 @@ There are six scale-size options, which are inputted in the customization:
 
 
 Enabling scale-size will make `Size` a percentage of the root/frame size instead of a pixel amount.\
+Additionally, it will make all other offsets and sizes relative to the `Size`.
+
 It will use the specified axis — for `XY` it will get the in-between of the two axis sizes.
 
 {% hint style="info" %}
 When using a\
 \- ScreenGui: `Root` is the user's screen.\
 \- SurfaceGui: `Root` is the SurfaceGui.
+
+`Frame` will always be the text the frame is contained within.
 {% endhint %}
 
 
