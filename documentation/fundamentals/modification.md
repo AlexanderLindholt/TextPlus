@@ -3,7 +3,7 @@
 You can modify a text frame after the initial creation, like this:
 
 ```lua
-TextPlus.Create(
+Text.Create(
 	frame, -- Frame that already has text created within it.
 	"This text has been modified!" -- New text.
 )
@@ -12,7 +12,7 @@ TextPlus.Create(
 You can even modify the customization after the creation, like this:
 
 ```lua
-TextPlus.Create(
+Text.Create(
 	frame,
 	"This text has been modified!",
 	{ -- New customization (optional).

@@ -3,11 +3,11 @@
 You'll be creating text using gui objects as frames, like this:
 
 ```lua
-local TextPlus = require(path.to.TextPlus)
+local Text = require(path.to.TextPlus)
 
 local frame = path.to.frame
 
-TextPlus.Create(
+Text.Create(
 	frame, -- Parent and boundary.
 	"This text is awesome!" -- Text.
 )
@@ -44,5 +44,5 @@ Doing so can screw up the rendering process, as instances are cached and re-used
 You can get the current text of a frame at any time like this:
 
 ```lua
-TextPlus.GetText(frame)
+Text.GetText(frame)
 ```

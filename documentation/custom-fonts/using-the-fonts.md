@@ -11,7 +11,7 @@ Instead of providing a `Font` object, directly reference the font data, like thi
 ```lua
 local fonts = require(path.to.Fonts)
 
-TextPlus.Create(
+Text.Create(
 	frame,
 	"Text",
 	{

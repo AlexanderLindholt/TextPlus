@@ -4,7 +4,7 @@ Every frame has this signal, which fires every time text is re-rendered inside t
 The signal can be retrieved like this:
 
 ```lua
-TextPlus.GetUpdateSignal(frame)
+Text.GetUpdateSignal(frame)
 ```
 
 {% hint style="info" %}

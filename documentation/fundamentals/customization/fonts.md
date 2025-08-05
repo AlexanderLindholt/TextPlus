@@ -10,7 +10,7 @@ It accepts two types of data:
 You can use it like this:
 
 ```lua
-TextPlus.Create(
+Text.Create(
 	frame,
 	"This text is awesome!",
 	{

@@ -10,7 +10,7 @@ You don't have to provide all, or even any, because they all have defaults.
 You use it like this:
 
 ```lua
-TextPlus.Create(
+Text.Create(
 	frame,
 	"This text is awesome!",
 	{ -- Customization (optional).
@@ -29,7 +29,7 @@ TextPlus.Create(
 You can get the current customization for a frame at any time like this:
 
 ```lua
-TextPlus.GetCustomization(frame)
+Text.GetCustomization(frame)
 ```
 
 {% hint style="info" %}

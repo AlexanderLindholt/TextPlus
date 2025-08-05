@@ -11,7 +11,7 @@ This function is optimized and respects all sorting.
 You can simply iterate through the characters like this:
 
 ```lua
-for characterNumber, character in TextPlus.GetCharacters(frame) do
+for characterNumber, character in Text.GetCharacters(frame) do
 	-- For Roblox fonts, 'character' will be a TextLabel.
 	-- For custom fonts, 'character' will be an ImageLabel.
 end

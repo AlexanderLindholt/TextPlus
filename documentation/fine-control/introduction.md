@@ -7,7 +7,7 @@ Using word and line sorting, you can not only modify individual characters, but 
 Just enable the sorting like this:
 
 ```lua
-TextPlus.Create(
+Text.Create(
 	"This text is awesome!",
 	frame,
 	{
