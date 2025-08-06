@@ -20,7 +20,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.22.1
+v1.22.2
 
 An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
@@ -549,11 +549,11 @@ local function clear(frame)
 	-- Identify character instance class and storage table.
 	local characterTable, characterClass = nil
 	if type(customization.Font) == "table" then
-		characterTable = textLabels
-		characterClass = "TextLabel"
-	else
 		characterTable = imageLabels
 		characterClass = "ImageLabel"
+	else
+		characterTable = textLabels
+		characterClass = "TextLabel"
 	end
 	
 	-- Setup character stashing.
