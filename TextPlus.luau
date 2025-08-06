@@ -20,7 +20,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.22.0
+v1.22.1
 
 An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
@@ -397,7 +397,7 @@ export type Customization = {
 	
 	ScaleSize:
 		"RootX" | "RootY" | "RootXY" |
-		"FrameX" | "FrameY" | "FrameXY"?,
+	"FrameX" | "FrameY" | "FrameXY"?,
 	MinimumSize: number?,
 	MaximumSize: number?,
 	
@@ -653,14 +653,14 @@ local function render(frame, text, customization)
 	local pixelated = customization.Pixelated
 	
 	local offset = customization.Offset
-	      offset = UDim2.fromOffset(offset.X, offset.Y) -- Convert Vector2 to UDim2.
+	offset = UDim2.fromOffset(offset.X, offset.Y) -- Convert Vector2 to UDim2.
 	local rotation = customization.Rotation
 	
 	local strokeSize = customization.StrokeSize
 	
 	local shadowOffset = customization.ShadowOffset
 	
-	local lineHeight = customization.LineHeight*size -- Get the line height relative to size.
+	local lineHeight = customization.LineHeight
 	local characterSpacing = customization.CharacterSpacing
 	
 	local truncationEnabled = customization.Truncate
@@ -731,9 +731,11 @@ local function render(frame, text, customization)
 		size = math.round(size)
 		
 		-- Scale size customization options.
-		offset = Vector2.new(offset.X*0.01*size, offset.Y*0.01*size)
-		strokeSize = strokeSize*0.01*size
-		shadowOffset = Vector2.new(shadowOffset.X*0.01*size, shadowOffset.Y*0.01*size)
+		offset = Vector2.new(math.round(offset.X*0.01*size), math.round(offset.Y*0.01*size))
+		strokeSize = math.round(strokeSize*0.01*size)
+		shadowOffset = Vector2.new(math.round(shadowOffset.X*0.01*size), math.round(shadowOffset.Y*0.01*size))
+		
+		lineHeight *= size
 	else
 		size = math.round(size)
 	end
@@ -762,9 +764,9 @@ local function render(frame, text, customization)
 			getCharacterWidth = function(character)
 				local data = characters[character]
 				return if data then
-					data[6]*size*characterSpacing
+					math.round(data[6]*size*characterSpacing)
 					else -- Missing character.
-					size*characterSpacing -- The 'missing' character is square, so height ('size') and width is the same.
+					math.round(size*characterSpacing) -- The 'missing' character is square, so height ('size') and width is the same.
 			end
 			if shadowOffset then
 				-- Shadow.
@@ -782,7 +784,7 @@ local function render(frame, text, customization)
 						local imageSize = Vector2.new(width, height)
 						local imageOffset = data[3]
 						-- Calculate size.
-						local characterSize = UDim2.fromOffset(width*invertedFontSize*size, height*invertedFontSize*size)
+						local characterSize = UDim2.fromOffset(math.round(width*invertedFontSize*size), math.round(height*invertedFontSize*size))
 						-- Character shadow.
 						local shadow = getImageLabel()
 						do
@@ -797,7 +799,7 @@ local function render(frame, text, customization)
 							shadow.ImageRectOffset = imageOffset
 							-- Transformation.
 							shadow.Size = characterSize
-							shadow.Position = position + UDim2.fromOffset(data[4]*size, data[5]*size) + offset + shadowOffset
+							shadow.Position = position + UDim2.fromOffset(math.round(data[4]*size), math.round(data[5]*size)) + offset + shadowOffset
 							shadow.Rotation = rotation
 						end
 						-- Main character.
@@ -855,8 +857,8 @@ local function render(frame, text, customization)
 						imageLabel.ImageRectSize = Vector2.new(width, height)
 						imageLabel.ImageRectOffset = data[3]
 						-- Transformation.
-						imageLabel.Size = UDim2.fromOffset(width*invertedFontSize*size, height*invertedFontSize*size)
-						imageLabel.Position = position + UDim2.fromOffset(data[4]*size, data[5]*size) + offset
+						imageLabel.Size = UDim2.fromOffset(math.round(width*invertedFontSize*size), math.round(height*invertedFontSize*size))
+						imageLabel.Position = position + UDim2.fromOffset(math.round(data[4]*size), math.round(data[5]*size)) + offset
 						imageLabel.Rotation = rotation
 						-- Return character instance.
 						return imageLabel
@@ -894,10 +896,10 @@ local function render(frame, text, customization)
 				local width = characterWidthCache[characterKey]
 				if not width then
 					textBoundsParams.Text = character
-					width = TextService:GetTextBoundsAsync(textBoundsParams).X*0.01
+					width = math.round(TextService:GetTextBoundsAsync(textBoundsParams).X*0.01)
 					characterWidthCache[characterKey] = width
 				end
-				return width*size*characterSpacing
+				return math.round(width*size*characterSpacing)
 			end
 			if shadowOffset then
 				-- Shadow.
@@ -907,7 +909,7 @@ local function render(frame, text, customization)
 				
 				createCharacter = function(character, position, width)
 					-- Calculate size.
-					local characterSize = UDim2.fromOffset(width*invertedCharacterSpacing, size)
+					local characterSize = UDim2.fromOffset(math.round(width*invertedCharacterSpacing), size)
 					--Character shadow.
 					local shadow = getTextLabel()
 					do
@@ -978,7 +980,7 @@ local function render(frame, text, customization)
 					textLabel.TextXAlignment = Enum.TextXAlignment.Left
 					textLabel.TextYAlignment = Enum.TextYAlignment.Top
 					-- Transformation.
-					textLabel.Size = UDim2.fromOffset(width*invertedCharacterSpacing, size)
+					textLabel.Size = UDim2.fromOffset(math.round(width*invertedCharacterSpacing), size)
 					textLabel.Rotation = rotation
 					textLabel.Position = position + offset
 					-- Apply stroke if customization is given.
