@@ -20,7 +20,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.22.2
+v1.23.0
 
 An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
@@ -397,7 +397,7 @@ export type Customization = {
 	
 	ScaleSize:
 		"RootX" | "RootY" | "RootXY" |
-	"FrameX" | "FrameY" | "FrameXY"?,
+		"FrameX" | "FrameY" | "FrameXY"?,
 	MinimumSize: number?,
 	MaximumSize: number?,
 	
@@ -435,36 +435,35 @@ export type Customization = {
 local module = {}
 
 --[[
-Gets the raw text string for a frame.
+Gets the raw text string for what is currently displayed in the specified frame.
 ]]--
 module.GetText = function(frame: GuiObject): Customization
 	-- Get, verify and return text.
 	local text = frameText[frame]
-	if not text then error("Invalid text frame.", 2) end
+	if not text then error("Invalid frame.", 2) end
 	return text
 end
 --[[
-Gets the customization for a frame.
+Gets the customization for the specified frame.
 ]]--
 module.GetCustomization = function(frame: GuiObject): Customization
 	-- Get, verify and return customization.
 	local customization = frameCustomizations[frame]
-	if not customization then error("Invalid text frame.", 2) end
+	if not customization then error("Invalid frame.", 2) end
 	return frameCustomizations[frame]
 end
 --[[
-Gets the text bounds of a frame.
-Returns <code>Vector2.zero</code> if not found.
+Gets the text bounds of the specified frame.
 ]]--
 module.GetTextBounds = function(frame: GuiObject): Vector2
 	-- Get, verify and return text bounds.
 	local textBounds = frameTextBounds[frame]
-	if not textBounds then error("Invalid text frame.", 2) end
+	if not textBounds then error("Invalid frame.", 2) end
 	return textBounds
 end
 
 --[[
-Returns an iterator function for looping through all characters in the specified frame.
+Returns an iterator function for iterating through all characters in the specified frame.
 
 <em>Ignores sorting folders.
 Works with any sorting.</em>
@@ -538,7 +537,7 @@ Returns the update signal for the specified frame.
 module.GetUpdateSignal = function(frame: GuiObject, signal: string)
 	-- Get, verify and return signal.
 	local signal = frameUpdateSignals[frame]
-	if not signal then error("Invalid text frame.", 2) end
+	if not signal then error("Invalid frame.", 2) end
 	return signal
 end
 
@@ -653,7 +652,6 @@ local function render(frame, text, customization)
 	local pixelated = customization.Pixelated
 	
 	local offset = customization.Offset
-	offset = UDim2.fromOffset(offset.X, offset.Y) -- Convert Vector2 to UDim2.
 	local rotation = customization.Rotation
 	
 	local strokeSize = customization.StrokeSize
@@ -674,20 +672,15 @@ local function render(frame, text, customization)
 	local scaleSize = customization.ScaleSize
 	if scaleSize then
 		-- Scale size.
-		if scaleSize:sub(1, 4) == "Root" then -- Relative to root.
+		if scaleSize:sub(1, 1) == "R" then -- Relative to root.
 			-- Find root size.
-			local rootSize = nil
-			if frame:FindFirstAncestorOfClass("ScreenGui") then
-				rootSize = camera.ViewportSize
-			else
-				local root = frame:FindFirstAncestorOfClass("SurfaceGui")
-				if root then
-					rootSize = root.AbsoluteSize
+			local root = frame:FindFirstAncestorOfClass("GuiBase")
+			local rootSize = if root == "ScreenGui" then
+				camera.ViewportSize
+				elseif not root then
+				Vector2.zero
 				else
-					root = frame:FindFirstAncestorOfClass("BillboardGui")
-					rootSize = if root then root.AbsoluteSize else Vector2.zero
-				end
-			end
+				root.AbsoluteSize
 			
 			-- Scale size.
 			if scaleSize == "RootX" then
@@ -727,18 +720,20 @@ local function render(frame, text, customization)
 			end
 		end
 		
-		-- Round size.
+		-- Round scaled size.
 		size = math.round(size)
 		
 		-- Scale size customization options.
-		offset = Vector2.new(math.round(offset.X*0.01*size), math.round(offset.Y*0.01*size))
+		offset = UDim2.fromOffset(math.round(offset.X*0.01*size), math.round(offset.Y*0.01*size))
 		strokeSize = math.round(strokeSize*0.01*size)
 		shadowOffset = Vector2.new(math.round(shadowOffset.X*0.01*size), math.round(shadowOffset.Y*0.01*size))
-		
-		lineHeight *= size
 	else
 		size = math.round(size)
+		
+		offset = UDim2.fromOffset(offset.X, offset.Y)
 	end
+	
+	lineHeight *= size
 	
 	-- Setup character functions.
 	local getCharacterWidth = nil
@@ -766,7 +761,7 @@ local function render(frame, text, customization)
 				return if data then
 					math.round(data[6]*size*characterSpacing)
 					else -- Missing character.
-					math.round(size*characterSpacing) -- The 'missing' character is square, so height ('size') and width is the same.
+					math.round(size*characterSpacing) -- The 'missing' character is square, so height and width is the same.
 			end
 			if shadowOffset then
 				-- Shadow.
@@ -883,7 +878,7 @@ local function render(frame, text, customization)
 			local strokeColor = nil
 			local strokeTransparency = nil
 			if strokeSize then
-				if strokeSize < 1 then strokeSize = 1 end
+				if strokeSize < 1 then strokeSize = 1 end -- Limit again, in case it was scaled with size.
 				strokeColor = customization.StrokeColor
 				strokeTransparency = customization.StrokeTransparency
 			end
@@ -896,7 +891,7 @@ local function render(frame, text, customization)
 				local width = characterWidthCache[characterKey]
 				if not width then
 					textBoundsParams.Text = character
-					width = math.round(TextService:GetTextBoundsAsync(textBoundsParams).X*0.01)
+					width = TextService:GetTextBoundsAsync(textBoundsParams).X*0.01
 					characterWidthCache[characterKey] = width
 				end
 				return math.round(width*size*characterSpacing)
@@ -910,7 +905,7 @@ local function render(frame, text, customization)
 				createCharacter = function(character, position, width)
 					-- Calculate size.
 					local characterSize = UDim2.fromOffset(math.round(width*invertedCharacterSpacing), size)
-					--Character shadow.
+					-- Character shadow.
 					local shadow = getTextLabel()
 					do
 						-- Stylize.
@@ -1141,7 +1136,7 @@ local function render(frame, text, customization)
 						table.insert(wordCharacters, {character, characterWidth})
 					end
 					
-					if lineWidth + wordWidth > frameWidth and #lineWords > 1 then
+					if lineWidth + wordWidth > frameWidth and #lineWords > 0 then
 						-- Update text width.
 						if lineWidth < frameWidth and lineWidth > textWidth then
 							textWidth = lineWidth
@@ -1596,7 +1591,7 @@ local function create(frame, text, customization)
 end
 
 --[[
-Creates text inside of a specified frame.
+Creates text in the specified frame.
 If text is already present, it will overwrite text and merge customizations.
 
 <strong>frame</strong>: The container and bounding box.
@@ -1606,7 +1601,7 @@ module.Create = function(frame: GuiObject, text: string, customization: Customiz
 	local currentCustomization = frameCustomizations[frame]
 	
 	-- Argument errors.
-	if not currentCustomization and (typeof(frame) ~= "Instance" or not frame:IsA("GuiObject")) then error("Invalid text frame.", 2) end
+	if not currentCustomization and (typeof(frame) ~= "Instance" or not frame:IsA("GuiObject")) then error("Invalid frame.", 2) end
 	if type(text) ~= "string" then error("Invalid text.", 2) end
 	
 	-- Handle customization.
@@ -1693,8 +1688,8 @@ module.Create = function(frame: GuiObject, text: string, customization: Customiz
 				create(frame, text, customization)
 			end
 		else
-			-- Create with default customization.
-			create(frame, text, defaults)
+			-- Exit because we have no customization to work with.
+			error("Invalid customization.", 2)
 		end
 	end
 end
