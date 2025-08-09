@@ -20,7 +20,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.23.0
+v1.23.1
 
 An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
@@ -725,8 +725,8 @@ local function render(frame, text, customization)
 		
 		-- Scale size customization options.
 		offset = UDim2.fromOffset(math.round(offset.X*0.01*size), math.round(offset.Y*0.01*size))
-		strokeSize = math.round(strokeSize*0.01*size)
-		shadowOffset = Vector2.new(math.round(shadowOffset.X*0.01*size), math.round(shadowOffset.Y*0.01*size))
+		if strokeSize then strokeSize = math.round(strokeSize*0.01*size) end
+		if shadowOffset then shadowOffset = Vector2.new(math.round(shadowOffset.X*0.01*size), math.round(shadowOffset.Y*0.01*size)) end
 	else
 		size = math.round(size)
 		
