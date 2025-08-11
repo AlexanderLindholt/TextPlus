@@ -37,7 +37,7 @@ _**All****&#x20;****`nil`****&#x20;****by default, but if 1 or more of them are 
 * **Color:** Color3\
   &#xNAN;_&#x44;efault:_ `Color3.fromRGB(0, 0, 0)`
 * **Transparency:** number\
-  &#xNAN;_&#x44;efault:_ `1`\
+  &#xNAN;_&#x44;efault:_ `0`\
   ​
 * **Pixelated:** boolean\
   &#xNAN;_&#x44;efault:_ `false`\
