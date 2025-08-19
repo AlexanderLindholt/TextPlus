@@ -1,10 +1,8 @@
 # Introduction
 
-The sorting options in the customization are crucial to fine-control.
+The sorting options in the customization are crucial to fine-control. Using word and line sorting, you can not only modify individual characters, but whole words and lines together, easily.
 
-Using word and line sorting, you can not only modify individual characters, but whole words and lines.
-
-Just enable the sorting like this:
+You can enable the sorting like this:
 
 ```lua
 Text.Create(
