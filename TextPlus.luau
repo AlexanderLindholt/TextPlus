@@ -20,7 +20,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.23.1
+v1.24.0
 
 An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
@@ -397,7 +397,7 @@ export type Customization = {
 	
 	ScaleSize:
 		"RootX" | "RootY" | "RootXY" |
-		"FrameX" | "FrameY" | "FrameXY"?,
+	"FrameX" | "FrameY" | "FrameXY"?,
 	MinimumSize: number?,
 	MaximumSize: number?,
 	
@@ -651,12 +651,12 @@ local function render(frame, text, customization)
 	
 	local pixelated = customization.Pixelated
 	
-	local offset = customization.Offset
+	local offset = customization.Offset local offsetX, offsetY = nil, nil
 	local rotation = customization.Rotation
 	
 	local strokeSize = customization.StrokeSize
 	
-	local shadowOffset = customization.ShadowOffset
+	local shadowOffset = customization.ShadowOffset local shadowOffsetX, shadowOffsetY = nil, nil
 	
 	local lineHeight = customization.LineHeight
 	local characterSpacing = customization.CharacterSpacing
@@ -720,17 +720,20 @@ local function render(frame, text, customization)
 			end
 		end
 		
-		-- Round scaled size.
+		-- Ensure integer size.
 		size = math.round(size)
 		
-		-- Scale size customization options.
-		offset = UDim2.fromOffset(math.round(offset.X*0.01*size), math.round(offset.Y*0.01*size))
+		-- Scale related customization options.
+		offsetX, offsetY = math.round(offset.X*0.01*size), math.round(offset.Y*0.01*size)
 		if strokeSize then strokeSize = math.round(strokeSize*0.01*size) end
-		if shadowOffset then shadowOffset = Vector2.new(math.round(shadowOffset.X*0.01*size), math.round(shadowOffset.Y*0.01*size)) end
+		if shadowOffset then shadowOffsetX, shadowOffsetY = math.round(shadowOffset.X*0.01*size), math.round(shadowOffset.Y*0.01*size) end
 	else
+		-- Ensure integer size.
 		size = math.round(size)
 		
-		offset = UDim2.fromOffset(offset.X, offset.Y)
+		-- Save offsets in optimized format.
+		offsetX, offsetY = offset.X, offset.Y
+		if shadowOffset then shadowOffsetX, shadowOffsetY = shadowOffset.X, shadowOffset.Y end
 	end
 	
 	lineHeight *= size
@@ -742,7 +745,7 @@ local function render(frame, text, customization)
 		if type(font) == "table" then
 			-- Custom font.
 			local image = "rbxassetid://"..tostring(font.Image)
-			local invertedFontSize = 1/font.Size -- To avoid expensive division.
+			local scaleFactor = size/font.Size
 			local characters = font.Characters
 			local resampleMode = if pixelated then Enum.ResamplerMode.Pixelated else Enum.ResamplerMode.Default
 			
@@ -759,17 +762,16 @@ local function render(frame, text, customization)
 			getCharacterWidth = function(character)
 				local data = characters[character]
 				return if data then
-					math.round(data[6]*size*characterSpacing)
+					data[6]*size*characterSpacing
 					else -- Missing character.
-					math.round(size*characterSpacing) -- The 'missing' character is square, so height and width is the same.
+					size*characterSpacing -- The 'missing' character is square, so height and width is the same.
 			end
 			if shadowOffset then
 				-- Shadow.
-				shadowOffset = UDim2.fromOffset(shadowOffset.X, shadowOffset.Y) -- Convert Vector2 to UDim2.
 				local shadowColor = customization.ShadowColor
 				local shadowTransparency = customization.ShadowTransparency
 				
-				createCharacter = function(character, position)
+				createCharacter = function(character, x, y)
 					-- Calculate information.
 					local data = characters[character]
 					if data then
@@ -778,8 +780,15 @@ local function render(frame, text, customization)
 						local height = data[2]
 						local imageSize = Vector2.new(width, height)
 						local imageOffset = data[3]
-						-- Calculate size.
-						local characterSize = UDim2.fromOffset(math.round(width*invertedFontSize*size), math.round(height*invertedFontSize*size))
+						
+						-- Calculate position and size.
+						local realX = x + data[4]*size
+						local realY = y + data[5]*size
+						local characterSize = UDim2.fromOffset(
+							math.round(realX + width*scaleFactor) - math.round(realX),
+							math.round(realY + height*scaleFactor) - math.round(realY)
+						)
+						
 						-- Character shadow.
 						local shadow = getImageLabel()
 						do
@@ -794,7 +803,10 @@ local function render(frame, text, customization)
 							shadow.ImageRectOffset = imageOffset
 							-- Transformation.
 							shadow.Size = characterSize
-							shadow.Position = position + UDim2.fromOffset(math.round(data[4]*size), math.round(data[5]*size)) + offset + shadowOffset
+							shadow.Position = UDim2.fromOffset(
+								math.round(realX) + offsetX + shadowOffsetX,
+								math.round(realY) + offsetY + shadowOffsetY
+							)
 							shadow.Rotation = rotation
 						end
 						-- Main character.
@@ -810,12 +822,13 @@ local function render(frame, text, customization)
 							main.ImageRectSize = imageSize
 							main.ImageRectOffset = imageOffset
 							-- Transformation.
-							main.Size = size
-							main.Position = -shadowOffset -- Counteract the shadow offset.
+							main.Size = characterSize
+							main.Position = UDim2.fromOffset(-shadowOffsetX, -shadowOffsetY) -- Counteract the shadow offset.
 							-- Name and parent.
 							main.Name = "Main"
 							main.Parent = shadow
 						end
+						
 						-- Return character instance.
 						return shadow
 					else -- Missing character.
@@ -828,15 +841,19 @@ local function render(frame, text, customization)
 						imageLabel.ResampleMode = resampleMode
 						-- Transformation.
 						imageLabel.Size = UDim2.fromOffset(size, size)
-						imageLabel.Position = position + offset
+						imageLabel.Position = UDim2.fromOffset(
+							x + offsetX,
+							y + offsetY
+						)
 						imageLabel.Rotation = rotation
+						
 						-- Return character instance.
 						return imageLabel
 					end
 				end
 			else
 				-- No shadow.
-				createCharacter = function(character, position)
+				createCharacter = function(character, x, y)
 					local data = characters[character]
 					if data then
 						-- Create and stylize.
@@ -852,9 +869,18 @@ local function render(frame, text, customization)
 						imageLabel.ImageRectSize = Vector2.new(width, height)
 						imageLabel.ImageRectOffset = data[3]
 						-- Transformation.
-						imageLabel.Size = UDim2.fromOffset(math.round(width*invertedFontSize*size), math.round(height*invertedFontSize*size))
-						imageLabel.Position = position + UDim2.fromOffset(math.round(data[4]*size), math.round(data[5]*size)) + offset
+						local realX = x + data[4]*size
+						local realY = y + data[5]*size
+						imageLabel.Size = UDim2.fromOffset(
+							math.round(realX + width*scaleFactor) - math.round(realX),
+							math.round(realY + height*scaleFactor) - math.round(realY)
+						)
+						imageLabel.Position = UDim2.fromOffset(
+							math.round(realX) + offsetX,
+							math.round(realY) + offsetY
+						)
 						imageLabel.Rotation = rotation
+						
 						-- Return character instance.
 						return imageLabel
 					else -- Missing character.
@@ -866,8 +892,12 @@ local function render(frame, text, customization)
 						imageLabel.ImageTransparency = transparency
 						-- Transformation.
 						imageLabel.Size = UDim2.fromOffset(size, size)
-						imageLabel.Position = position + offset
+						imageLabel.Position = UDim2.fromOffset(
+							x + offsetX,
+							y + offsetY
+						)
 						imageLabel.Rotation = rotation
+						
 						-- Return character instance.
 						return imageLabel
 					end
@@ -894,17 +924,17 @@ local function render(frame, text, customization)
 					width = TextService:GetTextBoundsAsync(textBoundsParams).X*0.01
 					characterWidthCache[characterKey] = width
 				end
-				return math.round(width*size*characterSpacing)
+				return width*size*characterSpacing
 			end
 			if shadowOffset then
 				-- Shadow.
-				shadowOffset = UDim2.fromOffset(shadowOffset.X, shadowOffset.Y) -- Convert Vector2 to UDim2.
 				local shadowColor = customization.ShadowColor
 				local shadowTransparency = customization.ShadowTransparency
 				
-				createCharacter = function(character, position, width)
+				createCharacter = function(character, x, y, width)
 					-- Calculate size.
 					local characterSize = UDim2.fromOffset(math.round(width*invertedCharacterSpacing), size)
+					
 					-- Character shadow.
 					local shadow = getTextLabel()
 					do
@@ -920,7 +950,10 @@ local function render(frame, text, customization)
 						-- Transformation.
 						shadow.Size = characterSize
 						shadow.Rotation = rotation
-						shadow.Position = position + offset + shadowOffset
+						shadow.Position = UDim2.fromOffset(
+							x + offsetX + shadowOffsetX,
+							y + offsetY + shadowOffsetY
+						)
 					end
 					-- Main character.
 					local main = getTextLabel()
@@ -936,7 +969,7 @@ local function render(frame, text, customization)
 						main.TextYAlignment = Enum.TextYAlignment.Top
 						-- Transform.
 						main.Size = characterSize
-						main.Position = -shadowOffset -- Counteract the shadow offset.
+						main.Position = UDim2.fromOffset(-shadowOffsetX, -shadowOffsetY) -- Counteract the shadow offset.
 						-- Name and parent.
 						main.Name = "Main"
 						main.Parent = shadow
@@ -958,12 +991,13 @@ local function render(frame, text, customization)
 							uiStroke.Parent = shadow
 						end
 					end
+					
 					-- Return character instance.
 					return shadow
 				end
 			else
 				-- No shadow.
-				createCharacter = function(character, position, width)
+				createCharacter = function(character, x, y, width)
 					-- Create and stylize.
 					local textLabel = getTextLabel()
 					textLabel.BackgroundTransparency = 1
@@ -977,7 +1011,10 @@ local function render(frame, text, customization)
 					-- Transformation.
 					textLabel.Size = UDim2.fromOffset(math.round(width*invertedCharacterSpacing), size)
 					textLabel.Rotation = rotation
-					textLabel.Position = position + offset
+					textLabel.Position = UDim2.fromOffset(
+						x + offsetX,
+						y + offsetY
+					)
 					-- Apply stroke if customization is given.
 					if strokeSize then
 						local uiStroke = getUIStroke()
@@ -1328,7 +1365,7 @@ local function render(frame, text, customization)
 				for characterIndex, characterData in word do
 					local width = characterData[2]
 					
-					local instance = createCharacter(characterData[1], UDim2.fromOffset(x, y), width)
+					local instance = createCharacter(characterData[1], x, y, width)
 					-- Numerical naming.
 					if not lineSorting and not wordSorting then
 						globalCharacterCount += 1
@@ -1533,10 +1570,10 @@ local function correctCustomization(customization)
 	end
 	
 	local truncate = customization.Truncate
-	if type(truncate) ~= "boolean" then
-		customization.Truncate = defaults.Truncate
-	elseif not truncate then
+	if truncate == false then
 		customization.Truncate = nil
+	elseif truncate ~= true then
+		customization.Truncate = defaults.Truncate
 	end
 	
 	if not xAlignments[customization.XAlignment] then
@@ -1547,17 +1584,17 @@ local function correctCustomization(customization)
 	end
 	
 	local wordSorting = customization.WordSorting
-	if type(wordSorting) ~= "boolean" then
-		customization.WordSorting = defaults.WordSorting
-	elseif not wordSorting then
+	if wordSorting == false then
 		customization.WordSorting = nil
+	elseif wordSorting ~= true then
+		customization.WordSorting = defaults.WordSorting
 	end
 	
 	local lineSorting = customization.LineSorting
-	if type(lineSorting) ~= "boolean" then
-		customization.LineSorting = defaults.LineSorting
-	elseif not lineSorting then
+	if lineSorting == false then
 		customization.LineSorting = nil
+	elseif lineSorting ~= true then
+		customization.LineSorting = defaults.LineSorting
 	end
 end
 
@@ -1622,7 +1659,7 @@ module.Create = function(frame: GuiObject, text: string, customization: Customiz
 						customization[key] = value
 					end
 				else
-					warn("No customization option called '"..key.."'.")
+					warn("Invalid customization option '"..key.."'.")
 				end
 			end
 			-- Correct new (merged) customization.
@@ -1661,7 +1698,7 @@ module.Create = function(frame: GuiObject, text: string, customization: Customiz
 			for key in customization do
 				if not customizationOptions[key] then
 					customization[key] = nil
-					warn("No customization option called '"..key.."'.")
+					warn("Invalid customization option '"..key.."'.")
 				end
 			end
 			-- Correct customization.
