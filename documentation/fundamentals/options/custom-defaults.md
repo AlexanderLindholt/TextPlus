@@ -18,7 +18,7 @@ return {
 ```
 
 {% hint style="success" %}
-You don't need to list all customization options. Those not provided will stay at the default default.
+You don't need to list all options. Those not provided will stay at the default default.
 {% endhint %}
 
 Here's the default defaults:

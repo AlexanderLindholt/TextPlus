@@ -1,8 +1,8 @@
 ---
-icon: fill-drip
+icon: ballot
 ---
 
-# Customization
+# Options
 
 The customization works with a table, where you can provide any customizations you want.\
 You don't have to provide all, or even any, because they all have defaults.
@@ -26,13 +26,13 @@ Text.Create(
 
 
 
-You can get the current customization for a frame at any time like this:
+You can get the current options for a frame at any time like this:
 
 ```lua
-Text.GetCustomization(frame)
+Text.GetOptions(frame)
 ```
 
 {% hint style="info" %}
-The customization received from the `GetCustomization` function will always be valid, and will contain all customization options except booleans set to `false` and those that are optional.
+The options received from the `GetOptions` function will always be valid, and will contain _all_ options except booleans set to `false` and those that are optional.
 {% endhint %}
 
