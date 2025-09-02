@@ -4,7 +4,7 @@ icon: ballot
 
 # Options
 
-The customization works with a table, where you can provide any customizations you want.\
+The options works with a table, where you can provide any options you want.\
 You don't have to provide all, or even any, because they all have defaults.
 
 You use it like this:
@@ -13,7 +13,7 @@ You use it like this:
 Text.Create(
 	frame,
 	"This text is awesome!",
-	{ -- Customization (optional).
+	{ -- Options (optional).
 		Size = 24,
 		Color = Color3.fromRGB(255, 255, 255),
 		XAlignment = "Center",

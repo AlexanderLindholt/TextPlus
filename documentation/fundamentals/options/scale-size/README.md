@@ -1,6 +1,6 @@
 # Scale-size
 
-There are six scale-size options, which are inputted in the customization:
+There are six scale-size options:
 
 * "RootX"
 * "RootY"
@@ -12,8 +12,7 @@ There are six scale-size options, which are inputted in the customization:
 
 
 
-Enabling scale-size will make `Size` a percentage of the root/frame size instead of a pixel amount.\
-Additionally, it will make all other offsets and sizes relative to the `Size`.
+Enabling scale-size will make `Size` a percentage of the root/frame size instead of a fixed pixel amount. Additionally, it will make all other offsets and sizes relative to the `Size`.
 
 It will use the specified axis — for `XY` it will get the in-between of the two axis sizes.
 

@@ -4,7 +4,7 @@ icon: tower-broadcast
 
 # Signals
 
-For signals to work, you have to install a signal library.
+For signals to function, you have to install a signal library.
 
 {% hint style="info" %}
 [Signal+](https://devforum.roblox.com/t/3552231) is highly recommended for performance.

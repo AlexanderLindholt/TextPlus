@@ -15,7 +15,7 @@ You can even modify the customization after the creation, like this:
 Text.Create(
 	frame,
 	"This text has been modified!",
-	{ -- New customization (optional).
+	{ -- New options (optional).
 		Size = 12 -- Overwrite size.
 		-- Everything else will stay like before!
 	}

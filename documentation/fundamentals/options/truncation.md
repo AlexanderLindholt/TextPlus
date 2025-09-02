@@ -1,6 +1,6 @@
 # Truncation
 
-`Truncate` is one of the many customization options.
+`Truncate` is one of the many options.
 
 It expects a boolean.
 

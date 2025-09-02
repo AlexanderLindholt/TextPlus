@@ -1,6 +1,6 @@
 # Pixelated
 
-`Pixelated` is one of the many customization options.
+`Pixelated` is one of the many options.
 
 It expects a boolean.
 

@@ -1,6 +1,6 @@
 # Fonts
 
-`Font` is one of the many customization options.
+`Font` is one of the many options.
 
 It accepts two types of data:
 

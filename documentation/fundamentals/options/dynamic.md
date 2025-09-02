@@ -1,6 +1,6 @@
 # Dynamic
 
-`Dynamic` is one of the many customization options.
+`Dynamic` is one of the many options.
 
 It expects a boolean.
 
