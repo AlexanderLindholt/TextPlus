@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.25.0
+v1.26.0
 
 An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
@@ -1174,9 +1174,9 @@ local function render(frame, text, options)
 	end
 	
 	local lineIndex = 1
-	for line in text:gmatch("[^\n]+") do
+	for line in (text.."\n"):gmatch("(.-)\n") do
 		-- Truncate line if necessary.
-		if truncationEnabled and #lines > 0 and #lines*lineHeight + size > frameHeight then
+		if truncationEnabled and lineIndex > 1 and lineIndex*lineHeight + size > frameHeight then
 			truncate()
 			truncated = true
 			break
@@ -1195,6 +1195,7 @@ local function render(frame, text, options)
 			end
 			-- Add empty line.
 			lines[lineIndex] = {{}, 0}
+			lineIndex += 1
 			-- Reset line data.
 			lineWidth = 0
 			lineWords = {}
@@ -1204,6 +1205,7 @@ local function render(frame, text, options)
 			for word in (line.." "):gmatch("([^ ]*) ") do
 				if word == "" then
 					lineWords[wordIndex] = false
+					wordIndex += 1
 					lineWidth += spaceWidth
 				else
 					local wordWidth = spaceWidth
@@ -1217,16 +1219,17 @@ local function render(frame, text, options)
 						characterIndex += 1
 					end
 					
-					if lineWidth + wordWidth > frameWidth and #lineWords > 0 then
+					if lineWidth + wordWidth > frameWidth and wordIndex > 1 then
 						-- Update text width.
 						if lineWidth < frameWidth and lineWidth > textWidth then
 							textWidth = lineWidth
 						end
 						
 						-- Truncate if necessary.
-						if truncationEnabled and (#lines + 1)*lineHeight + size > frameHeight then
+						if truncationEnabled and lineIndex*lineHeight + size > frameHeight then
 							-- Add word to line.
-							lineWords[wordIndex + 1] = wordCharacters
+							lineWords[wordIndex] = wordCharacters
+							wordIndex += 1
 							-- Add current line.
 							lines[lineIndex] = {lineWords, lineWidth}
 							lineIndex += 1
@@ -1242,16 +1245,16 @@ local function render(frame, text, options)
 							
 							-- Initalize next line with the word that exceeded the boundary.
 							lineWords = {wordCharacters}
+							wordIndex = 2
 							lineWidth = wordWidth
 						end
 					else
 						-- Add word to line.
 						lineWords[wordIndex] = wordCharacters
+						wordIndex += 1
 						lineWidth += wordWidth
 					end
 				end
-				
-				wordIndex += 1
 			end
 			
 			-- Update text width.
@@ -1264,13 +1267,11 @@ local function render(frame, text, options)
 			
 			-- Add current line.
 			lines[lineIndex] = {lineWords, lineWidth}
+			lineIndex += 1
 			-- Reset line data.
 			lineWords = {}
 			lineWidth = 0
 		end
-		
-		-- Increment index.
-		lineIndex += 1
 	end
 	
 	if truncationEnabled then
