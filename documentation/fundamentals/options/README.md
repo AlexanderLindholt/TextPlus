@@ -4,10 +4,10 @@ icon: ballot
 
 # Options
 
-The options works with a table, where you can provide any options you want.\
-You don't have to provide all, or even any, because they all have defaults.
+The options is a table, where you may provide any options you like.\
+You are not required to provide all, or even any, as all options have defaults.
 
-You use it like this:
+Example options:
 
 ```lua
 Text.Create(
