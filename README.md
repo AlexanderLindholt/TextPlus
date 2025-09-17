@@ -29,4 +29,4 @@ Experience text in Roblox like it should've been.
 <br>
 <br>
 
-## Check out the [guides and documentation](https://alexanderlindholt.gitbook.io/textplus) to learn all about it!
+## Check out the [guides and documentation](https://alexxander.gitbook.io/textplus) to learn all about it!
