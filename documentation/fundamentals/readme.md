@@ -9,7 +9,8 @@ local frame = path.to.frame
 
 Text.Create(
 	frame, -- Parent and boundary.
-	"This text is awesome!" -- Text.
+	"This text is awesome!", -- Text.
+	{} -- Options.
 )
 ```
 
