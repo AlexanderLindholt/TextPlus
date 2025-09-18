@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.26.0
+v1.27.0
 
 An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
@@ -287,17 +287,19 @@ if fonts then
 					label.Parent = screenGui -- It's crucial that we put it in a visible ScreenGui, otherwise it won't be loaded.
 					
 					-- Detect load.
-					coroutine.resume(coroutine.create(function()
-						repeat
+					task.spawn(function()
+						while true do
 							task.wait()
-						until label.IsLoaded
-						
-						if loading == 1 then
-							screenGui:Destroy()
-						else
-							loading -= 1
+							if label.IsLoaded then
+								if loading == 1 then
+									screenGui:Destroy()
+								else
+									loading -= 1
+								end
+								return
+							end
 						end
-					end))
+					end)
 				end
 			end
 			local function handleCharacters(characters, size)
@@ -398,7 +400,7 @@ export type Options = {
 	
 	ScaleSize:
 		"RootX" | "RootY" | "RootXY" |
-		"FrameX" | "FrameY" | "FrameXY"?,
+	"FrameX" | "FrameY" | "FrameXY"?,
 	MinimumSize: number?,
 	MaximumSize: number?,
 	
@@ -484,7 +486,7 @@ module.GetText = function(frame: GuiObject): Options
 	return text
 end
 --[[
-Returns the options for a frame.
+Returns the current options for a frame.
 ]]--
 module.GetOptions = function(frame: GuiObject): Options
 	-- Get, verify and return options.
@@ -493,9 +495,9 @@ module.GetOptions = function(frame: GuiObject): Options
 	return frameOptions[frame]
 end
 --[[
-Returns the text bounds of a frame.
+Returns the last rendered text's bounds for a frame.
 ]]--
-module.GetTextBounds = function(frame: GuiObject): Vector2
+module.GetBounds = function(frame: GuiObject): Vector2
 	-- Get, verify and return text bounds.
 	local textBounds = frameTextBounds[frame]
 	if not textBounds then error("Invalid frame.", 2) end
@@ -535,16 +537,16 @@ module.GetCharacters = function(frame: GuiObject): {TextLabel | ImageLabel}
 			-- Loop through lines.
 			for _, line in frame:GetChildren() do
 				-- Verify instance.
-				if not line:IsA("Folder") then continue end
-				
-				-- Loop through words.
-				for _, word in line:GetChildren() do
-					-- Loop through characters.
-					for _, character in word:GetChildren() do
-						-- Increment global character counter.
-						index += 1
-						-- Pass parameters to loop.
-						coroutine.yield(index, character)
+				if line:IsA("Folder") then
+					-- Loop through words.
+					for _, word in line:GetChildren() do
+						-- Loop through characters.
+						for _, character in word:GetChildren() do
+							-- Increment global character counter.
+							index += 1
+							-- Pass parameters to loop.
+							coroutine.yield(index, character)
+						end
 					end
 				end
 			end
@@ -555,27 +557,27 @@ module.GetCharacters = function(frame: GuiObject): {TextLabel | ImageLabel}
 			-- Loop through words/lines.
 			for _, folder in frame:GetChildren() do
 				-- Verify instance.
-				if not folder:IsA("Folder") then continue end
-				
-				-- Loop through characters.
-				for _, character in folder:GetChildren() do
-					-- Increment global character counter.
-					index += 1
-					-- Pass parameters to loop.
-					coroutine.yield(index, character)
+				if folder:IsA("Folder") then
+					-- Loop through characters.
+					for _, character in folder:GetChildren() do
+						-- Increment global character counter.
+						index += 1
+						-- Pass parameters to loop.
+						coroutine.yield(index, character)
+					end
 				end
 			end
 		else -- No sorting.
 			-- Identify character instance class for verification.
-			local characterClass = if typeof(options.Font) == "Font" then "TextLabel" else "ImageLabel"
+			local characterClass = if type(options.Font) == "table" then "TextLabel" else "ImageLabel"
 			
 			-- Loop through characters.
 			for index, character in frame:GetChildren() do
 				-- Verify instance.
-				if not character:IsA(characterClass) then continue end
-				
-				-- Pass parameters to loop.
-				coroutine.yield(index, character)
+				if character:IsA(characterClass) then
+					-- Pass parameters to loop.
+					coroutine.yield(index, character)
+				end
 			end
 		end
 	end)
@@ -605,7 +607,7 @@ local function clear(frame)
 		local stroke = character:FindFirstChildOfClass("UIStroke")
 		if stroke then
 			stroke.Parent = nil
-			table.insert(uiStrokes, stroke)
+			uiStrokes[uiStrokesAmount + 1] = stroke
 		end
 		
 		-- Remove and store the main character if this is a shadow.
@@ -619,7 +621,7 @@ local function clear(frame)
 			local mainStroke = main:FindFirstChildOfClass("UIStroke")
 			if mainStroke then
 				mainStroke.Parent = nil
-				table.insert(uiStrokes, mainStroke)
+				uiStrokes[uiStrokesAmount + 1] = mainStroke
 			end
 		end
 	end
@@ -635,13 +637,13 @@ local function clear(frame)
 			
 			-- Remove and store line folder.
 			line.Parent = nil
-			table.insert(folders, line)
+			folders[foldersAmount + 1] = line
 			
 			-- Loop through words.
 			for _, word in line:GetChildren() do
 				-- Remove and store word folder.
 				word.Parent = nil
-				table.insert(folders, word)
+				folders[foldersAmount + 1] = word
 				
 				-- Loop through characters.
 				for _, character in word:GetChildren() do
@@ -657,7 +659,7 @@ local function clear(frame)
 			
 			-- Remove and store word/line folder.
 			folder.Parent = nil
-			table.insert(folders, folder)
+			folders[foldersAmount + 1] = folder
 			
 			-- Loop through characters.
 			for _, character in folder:GetChildren() do
@@ -681,7 +683,7 @@ local function render(frame, text, options)
 	local frameWidth = frameSize.X
 	local frameHeight = frameSize.Y
 	
-	-- Options values.
+	-- Handle options.
 	local font = options.Font
 	
 	local size = options.Size
@@ -691,12 +693,12 @@ local function render(frame, text, options)
 	
 	local pixelated = options.Pixelated
 	
-	local offset = options.Offset local offsetX, offsetY
+	local offset = options.Offset; local offsetX, offsetY
 	local rotation = options.Rotation
 	
 	local strokeSize = options.StrokeSize
 	
-	local shadowOffset = options.ShadowOffset local shadowOffsetX, shadowOffsetY
+	local shadowOffset = options.ShadowOffset; local shadowOffsetX, shadowOffsetY
 	
 	local lineHeight = options.LineHeight
 	local characterSpacing = options.CharacterSpacing
@@ -717,21 +719,21 @@ local function render(frame, text, options)
 			local root = frame:FindFirstAncestorOfClass("GuiBase")
 			local rootSize =
 				if root then
-					if root:IsA("ScreenGui") then
-						camera.ViewportSize
-					else
-						root.AbsoluteSize
+				if root:IsA("ScreenGui") then
+				camera.ViewportSize
 				else
-					Vector2.zero
-			
-			-- Scale size.
-			if scaleSize == "RootX" then
-				size = size*0.01*rootSize.X
-			elseif scaleSize == "RootY" then
-				size = size*0.01*rootSize.Y
+				root.AbsoluteSize
 			else
-				size = size*0.01*(rootSize.X + rootSize.Y)/2
-			end
+				Vector2.zero
+				
+				-- Scale size.
+				if scaleSize == "RootX" then
+					size = size*0.01*rootSize.X
+				elseif scaleSize == "RootY" then
+					size = size*0.01*rootSize.Y
+				else
+					size = size*0.01*(rootSize.X + rootSize.Y)/2
+				end
 		else -- Relative to frame.
 			if scaleSize == "FrameX" then
 				size = size*0.01*frameWidth
@@ -804,7 +806,7 @@ local function render(frame, text, options)
 				local data = characters[character]
 				return if data then
 					data[6]*size*characterSpacing
-				else -- Missing character.
+					else -- Missing character.
 					size*characterSpacing -- The 'missing' character is square, so height and width is the same.
 			end
 			if shadowOffset then
@@ -883,8 +885,8 @@ local function render(frame, text, options)
 						-- Transformation.
 						imageLabel.Size = UDim2.fromOffset(size, size)
 						imageLabel.Position = UDim2.fromOffset(
-							x + offsetX,
-							y + offsetY
+							math.round(x + size) + offsetX,
+							math.round(y + size) + offsetY
 						)
 						imageLabel.Rotation = rotation
 						
@@ -934,8 +936,8 @@ local function render(frame, text, options)
 						-- Transformation.
 						imageLabel.Size = UDim2.fromOffset(size, size)
 						imageLabel.Position = UDim2.fromOffset(
-							x + offsetX,
-							y + offsetY
+							math.round(x + size) + offsetX,
+							math.round(y + size) + offsetY
 						)
 						imageLabel.Rotation = rotation
 						
@@ -948,7 +950,7 @@ local function render(frame, text, options)
 			-- Roblox font.
 			local strokeColor, strokeTransparency
 			if strokeSize then
-				if strokeSize < 1 then strokeSize = 1 end -- Limit again, in case it was scaled with size.
+				if strokeSize < 1 then strokeSize = 1 end -- Limit again, in case it was scaled.
 				strokeColor = options.StrokeColor
 				strokeTransparency = options.StrokeTransparency
 			end
@@ -1080,15 +1082,14 @@ local function render(frame, text, options)
 	
 	local lines = {}
 	
-	local lineWords = {}
-	local lineWidth = 0
-	
 	local truncated, truncate
 	if truncationEnabled then
-		truncated = false
 		truncate = function()
+			-- Line count.
+			local linesAmount = #lines
+			
 			-- Access last line.
-			local line = lines[#lines]
+			local line = lines[linesAmount]
 			local lineWords = line[1]
 			
 			-- If the line is empty, we can simply put ellipsis here.
@@ -1096,7 +1097,7 @@ local function render(frame, text, options)
 				line[2] = ellipsisWidth
 				
 				local dot = {".", dotWidth}
-				table.insert(lineWords, {dot, dot, dot})
+				lineWords[1] = {dot, dot, dot}
 				return
 			end
 			
@@ -1129,9 +1130,10 @@ local function render(frame, text, options)
 					
 					-- Add ellipsis and exit.
 					local dot = {".", dotWidth}
-					table.insert(wordCharacters, dot)
-					table.insert(wordCharacters, dot)
-					table.insert(wordCharacters, dot)
+					local charactersAmount = #wordCharacters
+					wordCharacters[charactersAmount + 1] = dot
+					wordCharacters[charactersAmount + 2] = dot
+					wordCharacters[charactersAmount + 3] = dot
 					return
 				end
 				
@@ -1146,9 +1148,10 @@ local function render(frame, text, options)
 						
 						-- Add ellipsis and exit.
 						local dot = {".", dotWidth}
-						table.insert(wordCharacters, dot)
-						table.insert(wordCharacters, dot)
-						table.insert(wordCharacters, dot)
+						local charactersAmount = #wordCharacters
+						wordCharacters[charactersAmount + 1] = dot
+						wordCharacters[charactersAmount + 2] = dot
+						wordCharacters[charactersAmount + 3] = dot
 						return
 					end
 				end
@@ -1158,32 +1161,29 @@ local function render(frame, text, options)
 				lineWords[index] = nil
 			end
 			
-			-- If last line, then we have no option but to put the ellipsis here.
-			if #lines == 1 then
+			-- Stop or continue.
+			if linesAmount == 1 then
+				-- Last line, so we have no option but to put the ellipsis here.
 				line[2] = ellipsisWidth
 				
 				local dot = {".", dotWidth}
 				table.insert(lineWords, {dot, dot, dot})
-				return
+			else
+				-- Erase current line and repeat truncation on next line.
+				lines[linesAmount] = nil
+				truncate()
 			end
-			
-			-- Remove this line, and repeat truncation on next line.
-			lines[#lines] = nil
-			truncate()
 		end
 	end
 	
+	local lineWords = {}
+	local lineWidth = -spaceWidth
+	
 	local lineIndex = 1
-	for line in (text.."\n"):gmatch("(.-)\n") do
-		-- Truncate line if necessary.
-		if truncationEnabled and lineIndex > 1 and lineIndex*lineHeight + size > frameHeight then
-			truncate()
-			truncated = true
-			break
-		end
-		
+	
+	for _, line in text:split("\n") do
 		-- Process line.
-		if line == "" then
+		if line == "" then -- Means consecutive line-breaks.
 			if #lineWords > 0 then
 				-- Update text width.
 				if lineWidth > textWidth then
@@ -1197,13 +1197,13 @@ local function render(frame, text, options)
 			lines[lineIndex] = {{}, 0}
 			lineIndex += 1
 			-- Reset line data.
-			lineWidth = 0
+			lineWidth = -spaceWidth
 			lineWords = {}
 		else
 			-- Process words.
 			local wordIndex = 1
-			for word in (line.." "):gmatch("([^ ]*) ") do
-				if word == "" then
+			for _, word in line:split(" ") do
+				if word == "" then -- Means consecutive spaces.
 					lineWords[wordIndex] = false
 					wordIndex += 1
 					lineWidth += spaceWidth
@@ -1221,6 +1221,7 @@ local function render(frame, text, options)
 					
 					if lineWidth + wordWidth > frameWidth and wordIndex > 1 then
 						-- Update text width.
+						lineWidth += wordWidth
 						if lineWidth < frameWidth and lineWidth > textWidth then
 							textWidth = lineWidth
 						end
@@ -1270,75 +1271,22 @@ local function render(frame, text, options)
 			lineIndex += 1
 			-- Reset line data.
 			lineWords = {}
-			lineWidth = 0
-		end
-	end
-	
-	if truncationEnabled then
-		for _, line in lines do
-			local lineWidth = line[2]
-			
-			if lineWidth >= frameWidth then
-				-- Grab last word in the line.
-				local lineWords = line[1]
-				local wordCharacters = lineWords[#lineWords]
-				
-				-- Add ellipsis width.
-				lineWidth += ellipsisWidth
-				
-				-- Remove characters one by one and check for space every time.
-				local foundSpace = false
-				for index = #wordCharacters, 2, -1 do
-					lineWidth -= wordCharacters[index][2]
-					wordCharacters[index] = nil
-					
-					if lineWidth < frameWidth then
-						-- Add ellipsis and exit.
-						local dot = {".", dotWidth}
-						table.insert(wordCharacters, dot)
-						table.insert(wordCharacters, dot)
-						table.insert(wordCharacters, dot)
-						
-						foundSpace = true
-						break
-					end
-				end
-				
-				-- Replace word with ellipsis if no space.
-				if not foundSpace then
-					local dot = {".", dotWidth}
-					lineWords[2] = nil
-					wordCharacters = lineWords[1]
-					if #wordCharacters == 1 then wordCharacters[1] = nil end
-					table.insert(wordCharacters, dot)
-					table.insert(wordCharacters, dot)
-					table.insert(wordCharacters, dot)
-					lineWidth = ellipsisWidth
-				end
-				
-				-- Update text width.
-				if lineWidth > textWidth then
-					textWidth = lineWidth
-				end
-				
-				-- Update line width.
-				line[2] = lineWidth
-			end
+			lineWidth = -spaceWidth
 		end
 	end
 	
 	-- Calculate final information and render.
 	local textHeight, lineGap, y
 	if yAlignment == "Top" then
-		textHeight = (#lines - 1)*lineHeight + size
+		textHeight = (lineIndex - 2)*lineHeight + size
 		lineGap = 0
 		y = 0
 	elseif yAlignment == "Center" then
-		textHeight = (#lines - 1)*lineHeight + size
+		textHeight = (lineIndex - 2)*lineHeight + size
 		lineGap = 0
 		y = math.round((frameHeight - textHeight)/2)
 	elseif yAlignment == "Bottom" then
-		textHeight = (#lines - 1)*lineHeight + size
+		textHeight = (lineIndex - 2)*lineHeight + size
 		lineGap = 0
 		y = frameHeight - textHeight
 	else
@@ -1349,7 +1297,7 @@ local function render(frame, text, options)
 			y = 0
 		else
 			textHeight = frameHeight
-			local linesAmount = #lines - 1
+			local linesAmount = lineIndex - 2
 			lineGap = (frameHeight - (linesAmount*lineHeight + size))/linesAmount
 			y = 0
 		end
@@ -1375,11 +1323,12 @@ local function render(frame, text, options)
 			x = frameWidth - lineData[2]
 		else
 			-- Justified alignment.
-			if #words > 1 then
-				wordGap = (frameWidth - lineData[2])/(#words - 1)
-			else
-				wordGap = 0
-			end
+			local wordsAmount = #words
+			wordGap = if wordsAmount > 1 then
+				(frameWidth - lineData[2])/(wordsAmount - 1)
+				else
+				0
+			
 			x = 0
 		end
 		
@@ -1738,44 +1687,40 @@ module.Create = function(frame: GuiObject, text: string, options: Options?)
 			create(frame, text, options)
 		end
 	else -- First text creation for this frame.
-		-- Create and save update signal.
-		if Signal then frameUpdateSignals[frame] = Signal() end
+		if Signal then frameUpdateSignals[frame] = Signal() end -- Create and save update signal.
 		
-		-- Ensure the options are in a table.
+		-- Correct options.
 		if type(options) == "table" then
-			-- Remove invalid options.
 			for key in options do
 				if not optionsList[key] then
 					options[key] = nil
 					warn("Invalid option '"..key.."'.")
 				end
 			end
-			-- Correct options.
-			correctOptions(options)
-			
-			-- Handle dynamic, calculate size, and render.
-			if type(options.Dynamic) ~= "boolean" then
-				options.Dynamic = defaults.Dynamic
-			end
-			if options.Dynamic == true then
-				create(frame, text, options)
-				enableDynamic(frame, text, options)
-			else
-				-- Dynamic disabling.
-				if not options.Dynamic then
-					local connection = frameSizeConnections[frame]
-					if connection then connection:Disconnect() end
-				end
-				
-				-- Get rid of the non-true value.
-				options.Dynamic = nil
-				
-				-- Create.
-				create(frame, text, options)
-			end
 		else
-			-- Exit because we have no options to work with.
-			error("Invalid options.", 2)
+			options = {}
+		end
+		correctOptions(options)
+		
+		-- Handle dynamic, calculate size, and render.
+		if type(options.Dynamic) ~= "boolean" then
+			options.Dynamic = defaults.Dynamic
+		end
+		if options.Dynamic == true then
+			create(frame, text, options)
+			enableDynamic(frame, text, options)
+		else
+			-- Dynamic disabling.
+			if not options.Dynamic then
+				local connection = frameSizeConnections[frame]
+				if connection then connection:Disconnect() end
+			end
+			
+			-- Get rid of the non-true value.
+			options.Dynamic = nil
+			
+			-- Create.
+			create(frame, text, options)
 		end
 	end
 end
