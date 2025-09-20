@@ -31,6 +31,6 @@ icon: box-archive
 {% step %}
 ### Place it
 
-Find a great place for it, where other scripts can reference it.
+Find a great place for the module, where other scripts can reference it.
 {% endstep %}
 {% endstepper %}

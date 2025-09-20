@@ -2,7 +2,7 @@
 icon: list
 ---
 
-# Customization options
+# Options list
 
 {% hint style="success" %}
 Most of the following defaults can be overwritten by [custom defaults](custom-defaults.md).
@@ -81,9 +81,3 @@ _**All****&#x20;****`nil`****&#x20;****by default, but if 1 or more of them are 
   ​
 * **Dynamic:** boolean\
   &#xNAN;_&#x44;efault:_ `false`
-
-&#x20;
-
-
-
-**Some of the customization options are described in detail on the next few pages.**
