@@ -4,7 +4,9 @@ icon: box-archive
 
 # Installation
 
-Let's first get the module:
+{% stepper %}
+{% step %}
+### Get the module
 
 {% tabs %}
 {% tab title="Creator Store" %}
@@ -24,11 +26,11 @@ Let's first get the module:
 * Drag the file into Roblox Studio.
 {% endtab %}
 {% endtabs %}
+{% endstep %}
 
+{% step %}
+### Place it
 
-
-You can then place it wherever you want and start using it.
-
-{% hint style="info" %}
-Modules are usually located in ReplicatedStorage. It's highly recommended to put it there.
-{% endhint %}
+Find a great place for it, where other scripts can reference it.
+{% endstep %}
+{% endstepper %}

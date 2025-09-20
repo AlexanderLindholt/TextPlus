@@ -1,6 +1,6 @@
 # Introduction
 
-You'll be creating text using gui objects as frames, like this:
+You'll be creating text using GUI objects as frames, like this:
 
 ```lua
 local Text = require(path.to.TextPlus)
@@ -16,7 +16,7 @@ Text.Create(
 The text will be wrapped inside of the frame.
 
 {% hint style="success" %}
-The frame can be any [gui object](https://create.roblox.com/docs/reference/engine/classes/GuiObject).
+The frame can be any [GUI object](https://create.roblox.com/docs/reference/engine/classes/GuiObject).
 {% endhint %}
 
 
@@ -31,12 +31,9 @@ Supported GUI roots are:
 
 
 {% hint style="warning" %}
-Content recognized as apart of the rendered text, including folders, will be cleared upon render.\
-\
-No additional folders or TextLabels/ImageLabels should be created within the text frame.\
-Nor should any descendants of the text's folders and labels be created.
+**Content recognized as a part of the rendered text, including folders, will be cleared upon render.**
 
-Doing so can screw up the rendering process, as instances are cached and re-used.
+Adding any folders or labels might screw up the rendering process, since instances are cached and re-used.
 {% endhint %}
 
 

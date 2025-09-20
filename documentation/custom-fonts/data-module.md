@@ -1,14 +1,27 @@
 # Data module
 
-Custom fonts are stored in a separate module.
+{% stepper %}
+{% step %}
+### Create module
 
-Create a new module and name it whatever you want — `Fonts` is recommended.\
-It's crucial that you give it the [tag](https://create.roblox.com/docs/studio/properties#instance-tags) `Fonts`, so that Text+ can identify it.
+Create a new module and name it whatever you want — `Fonts` is recommended.
+{% endstep %}
 
-The fonts data module has to return a table, like this:
+{% step %}
+### Tag module
+
+Give the module the [tag](https://create.roblox.com/docs/studio/properties#instance-tags) `Fonts`, so that Text+ can identify it.
+{% endstep %}
+
+{% step %}
+### Module content
+
+The module has to return a table, like this:
 
 ```lua
 return {
 	
 }
 ```
+{% endstep %}
+{% endstepper %}

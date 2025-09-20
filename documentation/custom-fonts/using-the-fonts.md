@@ -6,7 +6,7 @@ icon: gear
 
 Using custom fonts is extremely simple.
 
-Instead of providing a `Font` object, directly reference the font data, like this:
+Instead of providing a `Font` object, just directly reference the font data table, like this:
 
 ```lua
 local fonts = require(path.to.Fonts)

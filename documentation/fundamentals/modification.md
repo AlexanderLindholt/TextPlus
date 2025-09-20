@@ -1,6 +1,6 @@
 # Modification
 
-You can modify a text frame after the initial creation, like this:
+You can modify text after the initial creation, like this:
 
 ```lua
 Text.Create(
@@ -9,7 +9,7 @@ Text.Create(
 )
 ```
 
-You can even modify the customization after the creation, like this:
+You can even modify the options, like this:
 
 ```lua
 Text.Create(
@@ -23,10 +23,10 @@ Text.Create(
 ```
 
 {% hint style="info" %}
-It will keep all previous customization options, only overwriting with those you provide in the table.
+It will retain all previous options, only overwriting with those you provide as new ones.
 {% endhint %}
 
 {% hint style="success" %}
-You can reset any of the customization options to the default by simply setting it to `false`.
+You can reset any of the options to the default by simply setting it to `false`.
 {% endhint %}
 

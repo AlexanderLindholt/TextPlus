@@ -1,7 +1,7 @@
 # Line breaks
 
-You can manually break lines using just strings.\
-There are two ways to do this.
+You can manually break lines very easily.\
+There are two simple ways to do this:
 
 {% tabs %}
 {% tab title="Line-break symbol" %}
@@ -20,8 +20,8 @@ Example:
 {% endtab %}
 
 {% tab title="Multiline strings" %}
-Using `[[]]` instead of `""` will allow you to create a string that takes up multiple lines.\
-You simply make an actual line break, and it will work.
+Using `[[]]` instead of `""` will allow you to create a string that spans multiple lines.\
+You simply make an actual line break and it will work.
 
 Example:
 

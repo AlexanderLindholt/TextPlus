@@ -7,7 +7,7 @@ It accepts two types of data:
 * [A `Font` object](#user-content-fn-1)[^1].
 * A custom font data table.
 
-You can use it like this:
+You can use Roblox's officially supported fonts like this:
 
 ```lua
 Text.Create(

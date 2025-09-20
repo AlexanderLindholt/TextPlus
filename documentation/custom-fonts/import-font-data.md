@@ -1,6 +1,6 @@
 # Import font data
 
-Open the fonts data module.
+Open the fonts data module you created earlier.
 
 Add your font like this:
 
@@ -46,6 +46,6 @@ return {
 ```
 
 {% hint style="success" %}
-You will automatically be warned, in the output, about any mistakes you make in the font data module.
+You will be notified at runtime about any mistakes you made in the font data module.
 {% endhint %}
 
