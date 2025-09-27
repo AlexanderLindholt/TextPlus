@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.27.0
+v1.28.0
 
 An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
@@ -71,10 +71,6 @@ if Signal then
 	Signal = require(Signal)
 	if type(Signal) == "table" and Signal.new then Signal = Signal.new end
 end
-
--- User fonts.
-local fonts = CollectionService:GetTagged("Fonts")[1]
-if fonts then fonts = require(fonts) end
 
 -- Player camera.
 local camera = workspace.CurrentCamera
@@ -242,150 +238,7 @@ local function getFolder()
 	return instance
 end
 
--- Frame data tables.
-local frameText = {}
-local frameOptions = {}
-local frameTextBounds = {}
-local frameSizeConnections = {}
-local frameUpdateSignals = if Signal then {} else nil
-
--- Roblox built-in text rendering stuff.
-local textBoundsParams = Instance.new("GetTextBoundsParams")
-textBoundsParams.Size = 100 -- Size limit for Roblox's built-in text-rendering.
-
-local characterWidthCache = {}
-
--- Table for raw user fonts.
-local rawFonts = {}
-
--- Verify and preload user fonts if any.
-if fonts then
-	if type(fonts) ~= "table" then
-		warn("Font data is not a table.")
-	else
-		if not next(fonts) then
-			warn("Font data table is empty.")
-		else
-			local player = Players.LocalPlayer
-			local load = nil
-			if player then -- If running on client.
-				local screenGui = Instance.new("ScreenGui")
-				screenGui.Parent = player.PlayerGui
-				
-				local loading = 0
-				load = function(image) -- For preloading the font image assets.
-					-- Increment counter for currently loading images.
-					loading += 1
-					
-					-- Setup image label for loading the current font.
-					local label = Instance.new("ImageLabel")
-					label.Size = UDim2.fromOffset(1, 1) -- As small as possible.
-					label.BackgroundTransparency = 1
-					label.ImageTransparency = 0.999 -- Trick to make the image invisible and still have it be loaded.
-					label.ResampleMode = Enum.ResamplerMode.Pixelated
-					label.Image = "rbxassetid://"..tostring(image)
-					label.Parent = screenGui -- It's crucial that we put it in a visible ScreenGui, otherwise it won't be loaded.
-					
-					-- Detect load.
-					task.spawn(function()
-						while true do
-							task.wait()
-							if label.IsLoaded then
-								if loading == 1 then
-									screenGui:Destroy()
-								else
-									loading -= 1
-								end
-								return
-							end
-						end
-					end)
-				end
-			end
-			local function handleCharacters(characters, size)
-				local invertedFontSize = 1/size -- To avoid expensive division.
-				
-				for key, value in characters do
-					-- Verify format.
-					if type(key) ~= "string" then return end
-					if type(value) ~= "table" then return end
-					if type(value[1]) ~= "number" then return end
-					if type(value[2]) ~= "number" then return end
-					if typeof(value[3]) ~= "Vector2" then return end
-					if type(value[4]) ~= "number" then return end
-					if type(value[5]) ~= "number" then return end
-					if type(value[6]) ~= "number" then return end
-					
-					-- Precalculate normalized offset and x-advance.
-					value[4] *= invertedFontSize
-					value[5] *= invertedFontSize
-					value[6] *= invertedFontSize
-				end
-				
-				return true
-			end
-			local function processFonts(parent, parentPath)
-				local remove = {} -- Because immediate removal will throw off the loop.
-				local freeze = {} -- Because freezing before removal will not allow for removal.
-				for key, value in parent do
-					if type(value) ~= "table" then
-						table.insert(remove, key)
-					else
-						local currentPath = parentPath.."."..key
-						
-						if value.Image or value.Size or value.Characters then
-							-- Verify format.
-							if type(value.Image) ~= "number" then
-								warn("Missing an image id at '"..currentPath.."'.")
-								table.insert(remove, key)
-								continue
-							end
-							if type(value.Size) ~= "number" then
-								warn("Missing a size at '"..currentPath.."'.")
-								table.insert(remove, key)
-								continue
-							end
-							if type(value.Characters) ~= "table" then
-								warn("Missing characters at '"..currentPath.."'.")
-								table.insert(remove, key)
-								continue
-							end
-							if not handleCharacters(value.Characters, value.Size) then -- If not valid characters then.
-								warn("Invalid characters at '"..currentPath.."'.")
-								table.insert(remove, key)
-								continue
-							end
-							
-							-- Insert for later freeze.
-							table.insert(freeze, key)
-							
-							-- Insert the font into raw fonts table.
-							rawFonts[value] = true
-							
-							-- Preload images.
-							if player then -- If running on client.
-								load(value.Image)
-							end
-						else
-							processFonts(value, currentPath)
-							table.freeze(value)
-						end
-					end
-				end
-				for _, key in remove do
-					parent[key] = nil
-				end
-				for _, key in freeze do
-					table.freeze(parent[key])
-				end
-			end
-			processFonts(fonts, "Fonts")
-			table.freeze(fonts)
-		end
-	end
-end
-
--- Global types.
+-- Types.
 export type CustomFont = {
 	Image: number,
 	Size: number,
@@ -434,7 +287,6 @@ export type Options = {
 	Dynamic: boolean?
 }
 
--- Local types.
 type Connection = {
 	Connected: boolean,
 	Disconnect: typeof(
@@ -472,6 +324,161 @@ type Signal<Parameters...> = {
 		function(signal: Signal<Parameters...>) end
 	)
 }
+
+-- Frame data tables.
+local frameText: {string} = {}
+local frameOptions: {Options} = {}
+local frameTextBounds: {Vector2} = {}
+local frameSizeConnections: {RBXScriptSignal} = {}
+local frameUpdateSignals: {Signal} = if Signal then {} else nil
+
+-- Roblox built-in text rendering stuff.
+local textBoundsParams = Instance.new("GetTextBoundsParams")
+textBoundsParams.Size = 100 -- Size limit for Roblox's built-in text-rendering.
+
+local characterWidthCache = {}
+
+-- User fonts.
+local userFonts = {}
+
+for _, module in CollectionService:GetTagged("Fonts") do
+	if module:IsA("ModuleScript") then
+		local fonts = require(module)
+		if type(fonts) ~= "table" then
+			warn("Font data is not a table.")
+		else
+			if not next(fonts) then
+				warn("Font data table is empty.")
+			else
+				local player = Players.LocalPlayer
+				local load
+				if player then -- If running on client.
+					local screenGui = Instance.new("ScreenGui")
+					screenGui.Parent = player.PlayerGui
+					
+					local loading = 0
+					load = function(image) -- For preloading the font image assets.
+						-- Increment counter for currently loading images.
+						loading += 1
+						
+						-- Setup image label for loading the current font.
+						local label = Instance.new("ImageLabel")
+						label.Size = UDim2.fromOffset(1, 1) -- As small as possible.
+						label.BackgroundTransparency = 1
+						label.ImageTransparency = 0.999 -- Trick to make the image invisible and still have it be loaded.
+						label.ResampleMode = Enum.ResamplerMode.Pixelated
+						label.Image = "rbxassetid://"..tostring(image)
+						label.Parent = screenGui -- It's crucial that we put it in a visible ScreenGui, otherwise it won't be loaded.
+						
+						-- Detect load.
+						task.spawn(function()
+							while true do
+								task.wait()
+								if label.IsLoaded then
+									if loading == 1 then
+										screenGui:Destroy()
+									else
+										loading -= 1
+									end
+									return
+								end
+							end
+						end)
+					end
+				end
+				
+				local function handleCharacters(characters, size)
+					local invertedFontSize = 1/size -- To avoid expensive division.
+					
+					for key, value in characters do
+						-- Verify format.
+						if type(key) ~= "string" then return end
+						if type(value) ~= "table" then return end
+						if type(value[1]) ~= "number" then return end
+						if type(value[2]) ~= "number" then return end
+						if typeof(value[3]) ~= "Vector2" then return end
+						if type(value[4]) ~= "number" then return end
+						if type(value[5]) ~= "number" then return end
+						if type(value[6]) ~= "number" then return end
+						
+						-- Precalculate normalized offset and x-advance.
+						value[4] *= invertedFontSize
+						value[5] *= invertedFontSize
+						value[6] *= invertedFontSize
+					end
+					
+					return true
+				end
+				
+				local remove = {} -- Because immediate removal will throw off the loop.
+				local freeze = {} -- Because freezing before removal will result in errors.
+				
+				local processFonts
+				
+				local function handleTable(key, value, currentPath)
+					if value.Image or value.Size or value.Characters then
+						-- Verify format.
+						if type(value.Image) ~= "number" then
+							warn("Missing an image ID in: "..currentPath)
+							table.insert(remove, key)
+							return
+						end
+						if type(value.Size) ~= "number" then
+							warn("Missing a size in: "..currentPath)
+							table.insert(remove, key)
+							return
+						end
+						if type(value.Characters) ~= "table" then
+							warn("Missing characters in: "..currentPath)
+							table.insert(remove, key)
+							return
+						end
+						if not handleCharacters(value.Characters, value.Size) then -- If not valid characters then.
+							warn("Invalid characters in: "..currentPath)
+							table.insert(remove, key)
+							return
+						end
+						
+						-- Insert for later freeze.
+						table.insert(freeze, key)
+						
+						-- Insert the font into raw fonts table.
+						userFonts[value] = true
+						
+						-- Preload images.
+						if player then -- If running on client.
+							load(value.Image)
+						end
+					else
+						processFonts(value, currentPath)
+						table.freeze(value)
+					end
+				end
+				processFonts = function(parent, parentPath)
+					for key, value in parent do
+						if type(value) ~= "table" then
+							table.insert(remove, key)
+						else
+							handleTable(key, value, parentPath.."."..key)
+						end
+					end
+					
+					for index, key in remove do
+						parent[key] = nil
+						remove[index] = nil
+					end
+					for index, key in freeze do
+						table.freeze(parent[key])
+						freeze[index] = nil
+					end
+				end
+				
+				handleTable("", fonts, module.Name)
+				if #freeze > 0 then table.freeze(fonts) end
+			end
+		end
+	end
+end
 
 -- Module.
 local module = {}
@@ -717,23 +724,22 @@ local function render(frame, text, options)
 		if scaleSize:sub(1, 1) == "R" then -- Relative to root.
 			-- Find root size.
 			local root = frame:FindFirstAncestorOfClass("GuiBase")
-			local rootSize =
-				if root then
+			local rootSize = if root then
 				if root:IsA("ScreenGui") then
 				camera.ViewportSize
 				else
 				root.AbsoluteSize
 			else
 				Vector2.zero
-				
-				-- Scale size.
-				if scaleSize == "RootX" then
-					size = size*0.01*rootSize.X
-				elseif scaleSize == "RootY" then
-					size = size*0.01*rootSize.Y
-				else
-					size = size*0.01*(rootSize.X + rootSize.Y)/2
-				end
+			
+			-- Scale size.
+			if scaleSize == "RootX" then
+				size = size*0.01*rootSize.X
+			elseif scaleSize == "RootY" then
+				size = size*0.01*rootSize.Y
+			else
+				size = size*0.01*(rootSize.X + rootSize.Y)/2
+			end
 		else -- Relative to frame.
 			if scaleSize == "FrameX" then
 				size = size*0.01*frameWidth
@@ -1307,7 +1313,7 @@ local function render(frame, text, options)
 	local globalCharacterCount = 0 -- In case no sorting is enabled.
 	
 	for lineIndex, lineData in lines do
-		-- Get and cache current line's words.
+		-- Get the current line's words.
 		local words = lineData[1]
 		
 		-- Horizontal alignment.
@@ -1446,7 +1452,7 @@ local function correctOptions(options)
 	elseif typeof(font) == "Font" then -- Roblox font.
 		-- Verify font.
 		textBoundsParams.Font = options.Font
-		textBoundsParams.Text = " "
+		textBoundsParams.Text = ""
 		local _, result = pcall(TextService.GetTextBoundsAsync, TextService, textBoundsParams)
 		if type(result) == "string" then
 			warn("Invalid font. Fallback to default.")
@@ -1459,7 +1465,7 @@ local function correctOptions(options)
 			options.Size = 100
 		end
 	else
-		if not rawFonts[font] then
+		if not userFonts[font] then
 			-- Warn about invalid font.
 			warn("Invalid font. Fallback to default.")
 			
@@ -1722,6 +1728,22 @@ module.Create = function(frame: GuiObject, text: string, options: Options?)
 			-- Create.
 			create(frame, text, options)
 		end
+		
+		-- Handle destroying.
+		frame.Destroying:Connect(function()
+			-- Clear frame.
+			clear(frame)
+			-- Destroy signals.
+			frameUpdateSignals[frame]:Destroy()
+			frameUpdateSignals[frame] = nil
+			-- Remove connections.
+			frameSizeConnections[frame]:Disconnect()
+			frameSizeConnections[frame] = nil
+			-- Clear data.
+			frameText[frame] = nil
+			frameOptions[frame] = nil
+			frameTextBounds[frame] = nil
+		end)
 	end
 end
 
