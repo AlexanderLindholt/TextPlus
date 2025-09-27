@@ -27,10 +27,13 @@ An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
 
 
-GitHub:
+GitHub (repository):
 https://github.com/AlexanderLindholt/TextPlus
 
-DevForum:
+GitBook (documentation):
+https://alexxander.gitbook.io/TextPlus
+
+DevForum (topic):
 https://devforum.roblox.com/t/3521684
 
 
