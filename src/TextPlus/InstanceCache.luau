@@ -8,82 +8,78 @@ of creating and destroying instances during text updates.
 
 local InstanceCache = {}
 
-local textLabelsAmount, textLabels = 0, {}
-local imageLabelsAmount, imageLabels = 0, {}
-local uiStrokesAmount, uiStrokes = 0, {}
-local foldersAmount, folders = 0, {}
+local textLabelsAmount = 0
+local textLabels: {TextLabel} = {}
 
-function InstanceCache.getTextLabel()
-	local instance = textLabels[textLabelsAmount]
+local imageLabelsAmount = 0
+local imageLabels: {ImageLabel} = {}
+
+local uiStrokesAmount = 0
+local uiStrokes: {UIStroke} = {}
+
+local foldersAmount = 0
+local folders: {Folder} = {}
+
+local function getFromCache<T>(cache: {T}, amount: number, className: string): (T, number)
+	local instance = cache[amount]
 	if not instance then
-		textLabelsAmount += 1
-		return Instance.new("TextLabel")
+		return Instance.new(className) :: T, amount
 	end
 	
-	textLabels[textLabelsAmount] = nil
-	textLabelsAmount -= 1
+	cache[amount] = nil
+	return instance, amount - 1
+end
+
+local function stashToCache<T>(cache: {T}, amount: number, instance: T): number
+	amount += 1
+	cache[amount] = instance
+	return amount
+end
+
+function InstanceCache.getTextLabel(): TextLabel
+	local instance, newAmount = getFromCache(textLabels, textLabelsAmount, "TextLabel")
+	textLabelsAmount = newAmount
 	return instance
 end
 
-function InstanceCache.getImageLabel()
-	local instance = imageLabels[imageLabelsAmount]
-	if not instance then
-		imageLabelsAmount += 1
-		return Instance.new("ImageLabel")
-	end
-	
-	imageLabels[imageLabelsAmount] = nil
-	imageLabelsAmount -= 1
+function InstanceCache.getImageLabel(): ImageLabel
+	local instance, newAmount = getFromCache(imageLabels, imageLabelsAmount, "ImageLabel")
+	imageLabelsAmount = newAmount
 	return instance
 end
 
-function InstanceCache.getUIStroke()
-	local instance = uiStrokes[uiStrokesAmount]
-	if not instance then
-		uiStrokesAmount += 1
-		return Instance.new("UIStroke")
-	end
-	
-	uiStrokes[uiStrokesAmount] = nil
-	uiStrokesAmount -= 1
+function InstanceCache.getUIStroke(): UIStroke
+	local instance, newAmount = getFromCache(uiStrokes, uiStrokesAmount, "UIStroke")
+	uiStrokesAmount = newAmount
 	return instance
 end
 
-function InstanceCache.getFolder()
-	local instance = folders[foldersAmount]
-	if not instance then
-		foldersAmount += 1
-		return Instance.new("Folder")
-	end
-	
-	folders[foldersAmount] = nil
-	foldersAmount -= 1
+function InstanceCache.getFolder(): Folder
+	local instance, newAmount = getFromCache(folders, foldersAmount, "Folder")
+	foldersAmount = newAmount
 	return instance
 end
 
 function InstanceCache.stashCharacter(char)
 	local stroke = char:FindFirstChildOfClass("UIStroke")
+	
 	if stroke then
 		stroke.Parent = nil
-		uiStrokesAmount += 1
-		uiStrokes[uiStrokesAmount] = stroke
+		uiStrokesAmount = stashToCache(uiStrokes, uiStrokesAmount, stroke)
 	end
-
+	
 	char.Parent = nil
 	
 	if char:IsA("ImageLabel") then
-		imageLabelsAmount += 1
-		imageLabels[imageLabelsAmount] = char
-	elseif char:IsA("TextLabel") then
-		textLabelsAmount += 1
-		textLabels[textLabelsAmount] = char
+		imageLabelsAmount = stashToCache(imageLabels, imageLabelsAmount, char)
+	else
+		textLabelsAmount = stashToCache(textLabels, textLabelsAmount, char :: TextLabel)
 	end
 end
 
-function InstanceCache.stashFolder(folder)
+function InstanceCache.stashFolder(folder: Folder)
 	folder.Parent = nil
-	foldersAmount += 1
-	folders[foldersAmount] = folder
+	foldersAmount = stashToCache(folders, foldersAmount, folder)
 end
 
 return table.freeze(InstanceCache)
