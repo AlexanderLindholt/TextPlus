@@ -62,7 +62,7 @@ function FontManager.Initialize()
 		end
 	end
 
-	local function handleCharacters(characters, size)
+	local function handleCharacters(characters, size: number)
 		local invertedFontSize = 1 / size
 		
 		for key, value in characters do
@@ -78,7 +78,7 @@ function FontManager.Initialize()
 		return true
 	end
 
-	local function processFonts(parent, parentPath)
+	local function processFonts(parent, parentPath: string)
 		local remove = {}
 		local freeze = {}
 		
