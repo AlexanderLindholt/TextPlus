@@ -1,5 +1,19 @@
 ---
 icon: ballot
+layout:
+  width: default
+  title:
+    visible: true
+  description:
+    visible: false
+  tableOfContents:
+    visible: false
+  outline:
+    visible: true
+  pagination:
+    visible: true
+  metadata:
+    visible: true
 ---
 
 # Options
@@ -9,18 +23,17 @@ Those not provided will fallback to their respective defaults.
 
 Example:
 
-```lua
-Text.Create(
+<pre class="language-lua"><code class="lang-lua">Text.Create(
 	frame,
 	"This text is awesome!",
-	{ -- Options (optional).
-		Size = 24,
-		Color = Color3.fromRGB(255, 255, 255),
-		XAlignment = "Center",
-		YAlignment = "Center"
-	}
-)
-```
+<strong>	{ -- Options (optional).
+</strong><strong>		Size = 24,
+</strong><strong>		Color = Color3.fromRGB(255, 255, 255),
+</strong><strong>		XAlignment = "Center",
+</strong><strong>		YAlignment = "Center"
+</strong><strong>	}
+</strong>)
+</code></pre>
 
 
 

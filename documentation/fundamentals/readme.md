@@ -3,9 +3,9 @@
 You'll be creating text using GUI objects as frames, like this:
 
 ```lua
-local Text = require(path.to.TextPlus)
+local Text = require(script.TextPlus)
 
-local frame = path.to.frame
+local frame = script.frame
 
 Text.Create(
 	frame, -- Parent and boundary.

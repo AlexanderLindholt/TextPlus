@@ -1,19 +1,35 @@
+---
+layout:
+  width: default
+  title:
+    visible: true
+  description:
+    visible: false
+  tableOfContents:
+    visible: false
+  outline:
+    visible: true
+  pagination:
+    visible: true
+  metadata:
+    visible: true
+---
+
 # Introduction
 
 The sorting options in the customization are crucial to fine-control. Using word and line sorting, you can not only modify individual characters, but whole words and lines together, easily.
 
 You can enable the sorting like this:
 
-```lua
-Text.Create(
+<pre class="language-lua"><code class="lang-lua">Text.Create(
 	"This text is awesome!",
 	frame,
 	{
-		LineSorting = true,
-		WordSorting = true
-	}
+<strong>		LineSorting = true,
+</strong><strong>		WordSorting = true
+</strong>	}
 )
-```
+</code></pre>
 
 By default, line and word sorting will both be off, meaning your frame will contain pure characters.
 

@@ -1,3 +1,20 @@
+---
+layout:
+  width: default
+  title:
+    visible: true
+  description:
+    visible: false
+  tableOfContents:
+    visible: false
+  outline:
+    visible: true
+  pagination:
+    visible: true
+  metadata:
+    visible: true
+---
+
 # Specific access
 
 You can always access the exact line, word or character you want by indexing like this:
@@ -22,7 +39,7 @@ local character = frame["1"] -- (Character-1)
 
 ```lua
 local word = frame["1"] -- (Word-1) — Word sorting.
-local word = frame["1"]["1"] -- (Line-1 -> Word-1) — Line and word sorting.
+local word = frame["1"]["1"] -- (Line-1 -> Word-1) — Line+word sorting.
 for characterNumber, character in word:GetChildren() do
 	-- For Roblox fonts, 'character' will be a TextLabel.
 	-- For custom fonts, 'character' will be an ImageLabel.
