@@ -64,6 +64,7 @@ SOFTWARE.
 ]]--
 
 local CollectionService = game:GetService("CollectionService")
+local Camera = workspace.CurrentCamera
 
 local InstanceCache = require(script.InstanceCache)
 local Options = require(script.Options)
@@ -96,6 +97,7 @@ local rendererDependencies = {
 	Signal = Signal,
 	frameTextBounds = frameTextBounds,
 	frameUpdateSignals = frameUpdateSignals,
+    camera = Camera,
 	textBoundsParams = textBoundsParams,
 }
 
