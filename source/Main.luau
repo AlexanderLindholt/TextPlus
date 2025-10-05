@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.28.0
+v1.29.0
 
 An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
@@ -66,140 +66,46 @@ SOFTWARE.
 -- Services.
 local CollectionService = game:GetService("CollectionService")
 local TextService = game:GetService("TextService")
-local Players = game:GetService("Players")
+
+-- Attempt to find the plugin object.
+local plugin = script:FindFirstAncestorOfClass("Plugin")
 
 -- Signal library.
-local Signal = CollectionService:GetTagged("Signal")[1]
-if Signal then
-	Signal = require(Signal)
-	if type(Signal) == "table" and Signal.new then Signal = Signal.new end
-end
-
--- Player camera.
-local camera = workspace.CurrentCamera
-
--- Character for when a character is missing in custom fonts.
-local missingCharacter = "rbxassetid://75989824347198"
-
--- Lists for validity checks.
-local optionsList = {
-	Font = true,
-	
-	Size = true,
-	
-	ScaleSize = true,
-	MinimumSize = true,
-	MaximumSize = true,
-	
-	Color = true,
-	Transparency = true,
-	
-	Pixelated = true,
-	
-	Offset = true,
-	Rotation = true,
-	
-	StrokeSize = true,
-	StrokeColor = true,
-	StrokeTransparency = true,
-	
-	ShadowOffset = true,
-	ShadowColor = true,
-	ShadowTransparency = true,
-	
-	LineHeight = true,
-	CharacterSpacing = true,
-	
-	Truncate = true,
-	
-	XAlignment = true,
-	YAlignment = true,
-	
-	WordSorting = true,
-	LineSorting = true,
-	
-	Dynamic = true
-}
-
-local scaleSizeTypes = {
-	RootX = true,
-	RootY = true,
-	RootXY = true,
-	
-	FrameX = true,
-	FrameY = true,
-	FrameXY = true,
-}
-
-local xAlignments = {
-	Left = true,
-	Center = true,
-	Right = true,
-	Justified = true
-}
-local yAlignments = {
-	Top = true,
-	Center = true,
-	Bottom = true,
-	Justified = true
-}
-
--- Option defaults.
-local defaults = {
-	Font = Font.new("rbxasset://fonts/families/SourceSansPro.json"),
-	
-	Size = 14,
-	
-	ScaleSize = nil,
-	MinimumSize = nil,
-	MaximumSize = nil,
-	
-	Color = Color3.fromRGB(0, 0, 0),
-	Transparency = 0,
-	
-	Pixelated = false,
-	
-	Offset = Vector2.zero,
-	Rotation = 0,
-	
-	StrokeSize = 5,
-	StrokeColor = Color3.fromRGB(0, 0, 0),
-	
-	ShadowOffset = Vector2.new(0, 20),
-	ShadowColor = Color3.fromRGB(50, 50, 50),
-	
-	LineHeight = 1,
-	CharacterSpacing = 1,
-	
-	Truncate = false,
-	
-	XAlignment = "Left",
-	YAlignment = "Top",
-	
-	WordSorting = false,
-	LineSorting = false,
-	
-	Dynamic = false
-}
-local userDefaults = CollectionService:GetTagged("TextDefaults")[1]
-if userDefaults then
-	userDefaults = require(userDefaults)
-	if type(userDefaults) == "table" then
-		for key in userDefaults do
-			if optionsList[key] then defaults[key] = userDefaults[key] end
+local Signal
+if plugin then
+	for _, instance in plugin:GetDescendants() do
+		if instance:HasTag("Signal") then
+			Signal = require(instance)
+			if type(Signal) == "table" and Signal.new then Signal = Signal.new end
+			break
 		end
 	end
-end
-for key, value in defaults do
-	if value == false then defaults[key] = nil end
+else
+	Signal = CollectionService:GetTagged("Signal")[1]
+	if Signal then
+		Signal = require(Signal)
+		if type(Signal) == "table" and Signal.new then Signal = Signal.new end
+	end
 end
 
--- Instance tables for recycling.
+-- Player viewport.
+local camera = workspace.CurrentCamera
+
+-- Character for when a character is missing in a custom font.
+local missingCharacter = "rbxassetid://75989824347198"
+
+-- Options list for validation.
+local optionsList = require(script.Options)
+-- Option defaults.
+local defaults = require(script.Defaults)
+-- Options corrector.
+local correctOptions = require(script.CorrectOptions)
+
+-- Instance recycling.
 local textLabelsAmount, textLabels = 0, {}
 local imageLabelsAmount, imageLabels = 0, {}
 local uiStrokesAmount, uiStrokes = 0, {}
 local foldersAmount, folders = 0, {}
--- Instance retrieve functions.
 local function getTextLabel()
 	local instance = textLabels[textLabelsAmount]
 	if not instance then
@@ -256,7 +162,7 @@ export type Options = {
 	
 	ScaleSize:
 		"RootX" | "RootY" | "RootXY" |
-	"FrameX" | "FrameY" | "FrameXY"?,
+		"FrameX" | "FrameY" | "FrameXY"?,
 	MinimumSize: number?,
 	MaximumSize: number?,
 	
@@ -341,147 +247,8 @@ textBoundsParams.Size = 100 -- Size limit for Roblox's built-in text-rendering.
 
 local characterWidthCache = {}
 
--- User fonts.
-local userFonts = {}
-
-for _, module in CollectionService:GetTagged("Fonts") do
-	if module:IsA("ModuleScript") then
-		local fonts = require(module)
-		if type(fonts) ~= "table" then
-			warn("Font data is not a table.")
-		else
-			if not next(fonts) then
-				warn("Font data table is empty.")
-			else
-				local player = Players.LocalPlayer
-				local load
-				if player then -- If running on client.
-					local screenGui = Instance.new("ScreenGui")
-					screenGui.Parent = player.PlayerGui
-					
-					local loading = 0
-					load = function(image) -- For preloading the font image assets.
-						-- Increment counter for currently loading images.
-						loading += 1
-						
-						-- Setup image label for loading the current font.
-						local label = Instance.new("ImageLabel")
-						label.Size = UDim2.fromOffset(1, 1) -- As small as possible.
-						label.BackgroundTransparency = 1
-						label.ImageTransparency = 0.999 -- Trick to make the image invisible and still have it be loaded.
-						label.ResampleMode = Enum.ResamplerMode.Pixelated
-						label.Image = "rbxassetid://"..tostring(image)
-						label.Parent = screenGui -- It's crucial that we put it in a visible ScreenGui, otherwise it won't be loaded.
-						
-						-- Detect load.
-						task.spawn(function()
-							while true do
-								task.wait()
-								if label.IsLoaded then
-									if loading == 1 then
-										screenGui:Destroy()
-									else
-										loading -= 1
-									end
-									return
-								end
-							end
-						end)
-					end
-				end
-				
-				local function handleCharacters(characters, size)
-					local invertedFontSize = 1/size -- To avoid expensive division.
-					
-					for key, value in characters do
-						-- Verify format.
-						if type(key) ~= "string" then return end
-						if type(value) ~= "table" then return end
-						if type(value[1]) ~= "number" then return end
-						if type(value[2]) ~= "number" then return end
-						if typeof(value[3]) ~= "Vector2" then return end
-						if type(value[4]) ~= "number" then return end
-						if type(value[5]) ~= "number" then return end
-						if type(value[6]) ~= "number" then return end
-						
-						-- Precalculate normalized offset and x-advance.
-						value[4] *= invertedFontSize
-						value[5] *= invertedFontSize
-						value[6] *= invertedFontSize
-					end
-					
-					return true
-				end
-				
-				local remove = {} -- Because immediate removal will throw off the loop.
-				local freeze = {} -- Because freezing before removal will result in errors.
-				
-				local processFonts
-				
-				local function handleTable(key, value, currentPath)
-					if value.Image or value.Size or value.Characters then
-						-- Verify format.
-						if type(value.Image) ~= "number" then
-							warn("Missing an image ID in: "..currentPath)
-							table.insert(remove, key)
-							return
-						end
-						if type(value.Size) ~= "number" then
-							warn("Missing a size in: "..currentPath)
-							table.insert(remove, key)
-							return
-						end
-						if type(value.Characters) ~= "table" then
-							warn("Missing characters in: "..currentPath)
-							table.insert(remove, key)
-							return
-						end
-						if not handleCharacters(value.Characters, value.Size) then -- If not valid characters then.
-							warn("Invalid characters in: "..currentPath)
-							table.insert(remove, key)
-							return
-						end
-						
-						-- Insert for later freeze.
-						table.insert(freeze, key)
-						
-						-- Insert the font into raw fonts table.
-						userFonts[value] = true
-						
-						-- Preload images.
-						if player then -- If running on client.
-							load(value.Image)
-						end
-					else
-						processFonts(value, currentPath)
-						table.freeze(value)
-					end
-				end
-				processFonts = function(parent, parentPath)
-					for key, value in parent do
-						if type(value) ~= "table" then
-							table.insert(remove, key)
-						else
-							handleTable(key, value, parentPath.."."..key)
-						end
-					end
-					
-					for index, key in remove do
-						parent[key] = nil
-						remove[index] = nil
-					end
-					for index, key in freeze do
-						table.freeze(parent[key])
-						freeze[index] = nil
-					end
-				end
-				
-				handleTable("", fonts, module.Name)
-				if #freeze > 0 then table.freeze(fonts) end
-			end
-		end
-	end
-end
+-- Custom fonts.
+local userFonts = require(script.Fonts)
 
 -- Module.
 local module = {}
@@ -701,8 +468,6 @@ local function render(frame, text, options)
 	local color = options.Color
 	local transparency = options.Transparency
 	
-	local pixelated = options.Pixelated
-	
 	local offset = options.Offset; local offsetX, offsetY
 	local rotation = options.Rotation
 	
@@ -793,290 +558,288 @@ local function render(frame, text, options)
 	
 	-- Setup character functions.
 	local getCharacterWidth, createCharacter
-	do
-		if type(font) == "table" then
-			-- Custom font.
-			local image = "rbxassetid://"..tostring(font.Image)
-			local scaleFactor = size/font.Size
-			local characters = font.Characters
-			local resampleMode = if pixelated then Enum.ResamplerMode.Pixelated else Enum.ResamplerMode.Default
+	if type(font) == "table" then
+		-- Custom font.
+		local image = "rbxassetid://"..tostring(font.Image)
+		local scaleFactor = size/font.Size
+		local characters = font.Characters
+		local resampleMode = if options.Pixelated then Enum.ResamplerMode.Pixelated else Enum.ResamplerMode.Default
+		
+		--[[
+		Character data (table):
+			[1] = number - Size x
+			[2] = number - Size y
+			[3] = Vector2 - Image offset
+			[4] = number - Offset x
+			[5] = number - Offset y
+			[6] = number - X advance
+		]]--
+		
+		getCharacterWidth = function(character)
+			local data = characters[character]
+			return if data then
+				data[6]*size*characterSpacing
+				else -- Missing character.
+				size*characterSpacing -- The 'missing' character is square, so height and width is the same.
+		end
+		if shadowOffset then
+			-- Shadow.
+			local shadowColor = options.ShadowColor
+			local shadowTransparency = options.ShadowTransparency
 			
-			--[[
-			Character data (table):
-			  [1] = number - Size x
-			  [2] = number - Size y
-			  [3] = Vector2 - Image offset
-			  [4] = number - Offset x
-			  [5] = number - Offset y
-			  [6] = number - X advance
-			]]--
-			
-			getCharacterWidth = function(character)
+			createCharacter = function(character, x, y)
+				-- Calculate information.
 				local data = characters[character]
-				return if data then
-					data[6]*size*characterSpacing
-					else -- Missing character.
-					size*characterSpacing -- The 'missing' character is square, so height and width is the same.
-			end
-			if shadowOffset then
-				-- Shadow.
-				local shadowColor = options.ShadowColor
-				local shadowTransparency = options.ShadowTransparency
-				
-				createCharacter = function(character, x, y)
-					-- Calculate information.
-					local data = characters[character]
-					if data then
-						-- Cache character data.
-						local width = data[1]
-						local height = data[2]
-						local imageSize = Vector2.new(width, height)
-						local imageOffset = data[3]
-						
-						-- Calculate position and size.
-						local realX = x + data[4]*size
-						local realY = y + data[5]*size
-						local characterSize = UDim2.fromOffset(
-							math.round(realX + width*scaleFactor) - math.round(realX),
-							math.round(realY + height*scaleFactor) - math.round(realY)
-						)
-						
-						-- Character shadow.
-						local shadow = getImageLabel()
-						do
-							-- Stylize.
-							shadow.BackgroundTransparency = 1
-							shadow.Image = image
-							shadow.ImageColor3 = shadowColor
-							shadow.ImageTransparency = shadowTransparency
-							shadow.ResampleMode = resampleMode
-							-- Image cutout.
-							shadow.ImageRectSize = imageSize
-							shadow.ImageRectOffset = imageOffset
-							-- Transformation.
-							shadow.Size = characterSize
-							shadow.Position = UDim2.fromOffset(
-								math.round(realX) + offsetX + shadowOffsetX,
-								math.round(realY) + offsetY + shadowOffsetY
-							)
-							shadow.Rotation = rotation
-						end
-						-- Main character.
-						do
-							-- Create and stylize.
-							local main = getImageLabel()
-							main.BackgroundTransparency = 1
-							main.Image = image
-							main.ImageColor3 = color
-							main.ImageTransparency = transparency
-							main.ResampleMode = resampleMode
-							-- Image cutout.
-							main.ImageRectSize = imageSize
-							main.ImageRectOffset = imageOffset
-							-- Transformation.
-							main.Size = characterSize
-							main.Position = UDim2.fromOffset(-shadowOffsetX, -shadowOffsetY) -- Counteract the shadow offset.
-							-- Name and parent.
-							main.Name = "Main"
-							main.Parent = shadow
-						end
-						
-						-- Return character instance.
-						return shadow
-					else -- Missing character.
-						-- Create and stylize.
-						local imageLabel = getImageLabel()
-						imageLabel.BackgroundTransparency = 1
-						imageLabel.Image = missingCharacter
-						imageLabel.ImageColor3 = color
-						imageLabel.ImageTransparency = transparency
-						imageLabel.ResampleMode = resampleMode
-						-- Transformation.
-						imageLabel.Size = UDim2.fromOffset(size, size)
-						imageLabel.Position = UDim2.fromOffset(
-							math.round(x + size) + offsetX,
-							math.round(y + size) + offsetY
-						)
-						imageLabel.Rotation = rotation
-						
-						-- Return character instance.
-						return imageLabel
-					end
-				end
-			else
-				-- No shadow.
-				createCharacter = function(character, x, y)
-					local data = characters[character]
-					if data then
-						-- Create and stylize.
-						local imageLabel = getImageLabel()
-						imageLabel.BackgroundTransparency = 1
-						imageLabel.Image = image
-						imageLabel.ImageColor3 = color
-						imageLabel.ImageTransparency = transparency
-						imageLabel.ResampleMode = resampleMode
-						-- Image cutout.
-						local width = data[1]
-						local height = data[2]
-						imageLabel.ImageRectSize = Vector2.new(width, height)
-						imageLabel.ImageRectOffset = data[3]
-						-- Transformation.
-						local realX = x + data[4]*size
-						local realY = y + data[5]*size
-						imageLabel.Size = UDim2.fromOffset(
-							math.round(realX + width*scaleFactor) - math.round(realX),
-							math.round(realY + height*scaleFactor) - math.round(realY)
-						)
-						imageLabel.Position = UDim2.fromOffset(
-							math.round(realX) + offsetX,
-							math.round(realY) + offsetY
-						)
-						imageLabel.Rotation = rotation
-						
-						-- Return character instance.
-						return imageLabel
-					else -- Missing character.
-						-- Create and stylize.
-						local imageLabel = getImageLabel()
-						imageLabel.BackgroundTransparency = 1
-						imageLabel.Image = missingCharacter
-						imageLabel.ImageColor3 = color
-						imageLabel.ImageTransparency = transparency
-						-- Transformation.
-						imageLabel.Size = UDim2.fromOffset(size, size)
-						imageLabel.Position = UDim2.fromOffset(
-							math.round(x + size) + offsetX,
-							math.round(y + size) + offsetY
-						)
-						imageLabel.Rotation = rotation
-						
-						-- Return character instance.
-						return imageLabel
-					end
-				end
-			end
-		else
-			-- Roblox font.
-			local strokeColor, strokeTransparency
-			if strokeSize then
-				if strokeSize < 1 then strokeSize = 1 end -- Limit again, in case it was scaled.
-				strokeColor = options.StrokeColor
-				strokeTransparency = options.StrokeTransparency
-			end
-			
-			local invertedCharacterSpacing = 1/characterSpacing -- To avoid expensive division.
-			local fontKey = font.Family..tostring(font.Weight.Value)..tostring(font.Style.Value)
-			
-			getCharacterWidth = function(character)
-				local characterKey = character..fontKey
-				local width = characterWidthCache[characterKey]
-				if not width then
-					textBoundsParams.Text = character
-					width = TextService:GetTextBoundsAsync(textBoundsParams).X*0.01
-					characterWidthCache[characterKey] = width
-				end
-				return width*size*characterSpacing
-			end
-			if shadowOffset then
-				-- Shadow.
-				local shadowColor = options.ShadowColor
-				local shadowTransparency = options.ShadowTransparency
-				
-				createCharacter = function(character, x, y, width)
-					-- Calculate size.
-					local characterSize = UDim2.fromOffset(math.round(width*invertedCharacterSpacing), size)
+				if data then
+					-- Cache character data.
+					local width = data[1]
+					local height = data[2]
+					local imageSize = Vector2.new(width, height)
+					local imageOffset = data[3]
+					
+					-- Calculate position and size.
+					local realX = x + data[4]*size
+					local realY = y + data[5]*size
+					local characterSize = UDim2.fromOffset(
+						math.round(realX + width*scaleFactor) - math.round(realX),
+						math.round(realY + height*scaleFactor) - math.round(realY)
+					)
 					
 					-- Character shadow.
-					local shadow = getTextLabel()
+					local shadow = getImageLabel()
 					do
 						-- Stylize.
 						shadow.BackgroundTransparency = 1
-						shadow.Text = character
-						shadow.TextSize = size
-						shadow.TextColor3 = shadowColor
-						shadow.TextTransparency = shadowTransparency
-						shadow.FontFace = font
-						shadow.TextXAlignment = Enum.TextXAlignment.Left
-						shadow.TextYAlignment = Enum.TextYAlignment.Top
+						shadow.Image = image
+						shadow.ImageColor3 = shadowColor
+						shadow.ImageTransparency = shadowTransparency
+						shadow.ResampleMode = resampleMode
+						-- Image cutout.
+						shadow.ImageRectSize = imageSize
+						shadow.ImageRectOffset = imageOffset
 						-- Transformation.
 						shadow.Size = characterSize
-						shadow.Rotation = rotation
 						shadow.Position = UDim2.fromOffset(
-							x + offsetX + shadowOffsetX,
-							y + offsetY + shadowOffsetY
+							math.round(realX) + offsetX + shadowOffsetX,
+							math.round(realY) + offsetY + shadowOffsetY
 						)
+						shadow.Rotation = rotation
 					end
 					-- Main character.
-					local main = getTextLabel()
 					do
-						-- Stylize.
+						-- Create and stylize.
+						local main = getImageLabel()
 						main.BackgroundTransparency = 1
-						main.Text = character
-						main.TextSize = size
-						main.TextColor3 = color
-						main.TextTransparency = transparency
-						main.FontFace = font
-						main.TextXAlignment = Enum.TextXAlignment.Left
-						main.TextYAlignment = Enum.TextYAlignment.Top
-						-- Transform.
+						main.Image = image
+						main.ImageColor3 = color
+						main.ImageTransparency = transparency
+						main.ResampleMode = resampleMode
+						-- Image cutout.
+						main.ImageRectSize = imageSize
+						main.ImageRectOffset = imageOffset
+						-- Transformation.
 						main.Size = characterSize
 						main.Position = UDim2.fromOffset(-shadowOffsetX, -shadowOffsetY) -- Counteract the shadow offset.
 						-- Name and parent.
 						main.Name = "Main"
 						main.Parent = shadow
 					end
-					-- Apply stroke if options are given.
-					if strokeSize then
-						do
-							local uiStroke = getUIStroke()
-							uiStroke.Thickness = strokeSize
-							uiStroke.Color = strokeColor
-							uiStroke.Transparency = strokeTransparency
-							uiStroke.Parent = main
-						end
-						do
-							local uiStroke = getUIStroke()
-							uiStroke.Thickness = strokeSize
-							uiStroke.Color = strokeColor
-							uiStroke.Transparency = strokeTransparency
-							uiStroke.Parent = shadow
-						end
-					end
 					
 					-- Return character instance.
 					return shadow
-				end
-			else
-				-- No shadow.
-				createCharacter = function(character, x, y, width)
+				else -- Missing character.
 					-- Create and stylize.
-					local textLabel = getTextLabel()
-					textLabel.BackgroundTransparency = 1
-					textLabel.Text = character
-					textLabel.TextSize = size
-					textLabel.TextColor3 = color
-					textLabel.TextTransparency = transparency
-					textLabel.FontFace = font
-					textLabel.TextXAlignment = Enum.TextXAlignment.Left
-					textLabel.TextYAlignment = Enum.TextYAlignment.Top
+					local imageLabel = getImageLabel()
+					imageLabel.BackgroundTransparency = 1
+					imageLabel.Image = missingCharacter
+					imageLabel.ImageColor3 = color
+					imageLabel.ImageTransparency = transparency
+					imageLabel.ResampleMode = resampleMode
 					-- Transformation.
-					textLabel.Size = UDim2.fromOffset(math.round(width*invertedCharacterSpacing), size)
-					textLabel.Rotation = rotation
-					textLabel.Position = UDim2.fromOffset(
-						x + offsetX,
-						y + offsetY
+					imageLabel.Size = UDim2.fromOffset(size, size)
+					imageLabel.Position = UDim2.fromOffset(
+						math.round(x + size) + offsetX,
+						math.round(y + size) + offsetY
 					)
-					-- Apply stroke if options are given.
-					if strokeSize then
+					imageLabel.Rotation = rotation
+					
+					-- Return character instance.
+					return imageLabel
+				end
+			end
+		else
+			-- No shadow.
+			createCharacter = function(character, x, y)
+				local data = characters[character]
+				if data then
+					-- Create and stylize.
+					local imageLabel = getImageLabel()
+					imageLabel.BackgroundTransparency = 1
+					imageLabel.Image = image
+					imageLabel.ImageColor3 = color
+					imageLabel.ImageTransparency = transparency
+					imageLabel.ResampleMode = resampleMode
+					-- Image cutout.
+					local width = data[1]
+					local height = data[2]
+					imageLabel.ImageRectSize = Vector2.new(width, height)
+					imageLabel.ImageRectOffset = data[3]
+					-- Transformation.
+					local realX = x + data[4]*size
+					local realY = y + data[5]*size
+					imageLabel.Size = UDim2.fromOffset(
+						math.round(realX + width*scaleFactor) - math.round(realX),
+						math.round(realY + height*scaleFactor) - math.round(realY)
+					)
+					imageLabel.Position = UDim2.fromOffset(
+						math.round(realX) + offsetX,
+						math.round(realY) + offsetY
+					)
+					imageLabel.Rotation = rotation
+					
+					-- Return character instance.
+					return imageLabel
+				else -- Missing character.
+					-- Create and stylize.
+					local imageLabel = getImageLabel()
+					imageLabel.BackgroundTransparency = 1
+					imageLabel.Image = missingCharacter
+					imageLabel.ImageColor3 = color
+					imageLabel.ImageTransparency = transparency
+					-- Transformation.
+					imageLabel.Size = UDim2.fromOffset(size, size)
+					imageLabel.Position = UDim2.fromOffset(
+						math.round(x + size) + offsetX,
+						math.round(y + size) + offsetY
+					)
+					imageLabel.Rotation = rotation
+					
+					-- Return character instance.
+					return imageLabel
+				end
+			end
+		end
+	else
+		-- Roblox font.
+		local strokeColor, strokeTransparency
+		if strokeSize then
+			if strokeSize < 1 then strokeSize = 1 end -- Limit again, in case it was scaled.
+			strokeColor = options.StrokeColor
+			strokeTransparency = options.StrokeTransparency
+		end
+		
+		local invertedCharacterSpacing = 1/characterSpacing -- To avoid expensive division.
+		local fontKey = font.Family..tostring(font.Weight.Value)..tostring(font.Style.Value)
+		
+		getCharacterWidth = function(character)
+			local characterKey = character..fontKey
+			local width = characterWidthCache[characterKey]
+			if not width then
+				textBoundsParams.Text = character
+				width = TextService:GetTextBoundsAsync(textBoundsParams).X*0.01
+				characterWidthCache[characterKey] = width
+			end
+			return width*size*characterSpacing
+		end
+		if shadowOffset then
+			-- Shadow.
+			local shadowColor = options.ShadowColor
+			local shadowTransparency = options.ShadowTransparency
+			
+			createCharacter = function(character, x, y, width)
+				-- Calculate size.
+				local characterSize = UDim2.fromOffset(math.round(width*invertedCharacterSpacing), size)
+				
+				-- Character shadow.
+				local shadow = getTextLabel()
+				do
+					-- Stylize.
+					shadow.BackgroundTransparency = 1
+					shadow.Text = character
+					shadow.TextSize = size
+					shadow.TextColor3 = shadowColor
+					shadow.TextTransparency = shadowTransparency
+					shadow.FontFace = font
+					shadow.TextXAlignment = Enum.TextXAlignment.Left
+					shadow.TextYAlignment = Enum.TextYAlignment.Top
+					-- Transformation.
+					shadow.Size = characterSize
+					shadow.Rotation = rotation
+					shadow.Position = UDim2.fromOffset(
+						x + offsetX + shadowOffsetX,
+						y + offsetY + shadowOffsetY
+					)
+				end
+				-- Main character.
+				local main = getTextLabel()
+				do
+					-- Stylize.
+					main.BackgroundTransparency = 1
+					main.Text = character
+					main.TextSize = size
+					main.TextColor3 = color
+					main.TextTransparency = transparency
+					main.FontFace = font
+					main.TextXAlignment = Enum.TextXAlignment.Left
+					main.TextYAlignment = Enum.TextYAlignment.Top
+					-- Transform.
+					main.Size = characterSize
+					main.Position = UDim2.fromOffset(-shadowOffsetX, -shadowOffsetY) -- Counteract the shadow offset.
+					-- Name and parent.
+					main.Name = "Main"
+					main.Parent = shadow
+				end
+				-- Apply stroke if options are given.
+				if strokeSize then
+					do
 						local uiStroke = getUIStroke()
 						uiStroke.Thickness = strokeSize
 						uiStroke.Color = strokeColor
 						uiStroke.Transparency = strokeTransparency
-						uiStroke.Parent = textLabel
+						uiStroke.Parent = main
 					end
-					-- Return character instance.
-					return textLabel
+					do
+						local uiStroke = getUIStroke()
+						uiStroke.Thickness = strokeSize
+						uiStroke.Color = strokeColor
+						uiStroke.Transparency = strokeTransparency
+						uiStroke.Parent = shadow
+					end
 				end
+				
+				-- Return character instance.
+				return shadow
+			end
+		else
+			-- No shadow.
+			createCharacter = function(character, x, y, width)
+				-- Create and stylize.
+				local textLabel = getTextLabel()
+				textLabel.BackgroundTransparency = 1
+				textLabel.Text = character
+				textLabel.TextSize = size
+				textLabel.TextColor3 = color
+				textLabel.TextTransparency = transparency
+				textLabel.FontFace = font
+				textLabel.TextXAlignment = Enum.TextXAlignment.Left
+				textLabel.TextYAlignment = Enum.TextYAlignment.Top
+				-- Transformation.
+				textLabel.Size = UDim2.fromOffset(math.round(width*invertedCharacterSpacing), size)
+				textLabel.Rotation = rotation
+				textLabel.Position = UDim2.fromOffset(
+					x + offsetX,
+					y + offsetY
+				)
+				-- Apply stroke if options are given.
+				if strokeSize then
+					local uiStroke = getUIStroke()
+					uiStroke.Thickness = strokeSize
+					uiStroke.Color = strokeColor
+					uiStroke.Transparency = strokeTransparency
+					uiStroke.Parent = textLabel
+				end
+				-- Return character instance.
+				return textLabel
 			end
 		end
 	end
@@ -1230,7 +993,6 @@ local function render(frame, text, options)
 					
 					if lineWidth + wordWidth > frameWidth and wordIndex > 1 then
 						-- Update text width.
-						lineWidth += wordWidth
 						if lineWidth < frameWidth and lineWidth > textWidth then
 							textWidth = lineWidth
 						end
@@ -1403,208 +1165,6 @@ local function render(frame, text, options)
 	if Signal then frameUpdateSignals[frame]:Fire() end
 end
 
-local function correctOptions(options)
-	if not scaleSizeTypes[options.ScaleSize] then
-		options.ScaleSize = defaults.ScaleSize
-	end
-	if not scaleSizeTypes[options.ScaleSize] then
-		-- Scale-size disabled.
-		options.ScaleSize = nil
-		options.MinimumSize = nil
-		options.MaximumSize = nil
-		
-		if type(options.Size) ~= "number" then
-			options.Size = defaults.Size
-		elseif options.Size < 1 then
-			options.Size = 1
-		end
-	else
-		-- Scale-size enabled.
-		if type(options.MinimumSize) ~= "number" then
-			options.MinimumSize = defaults.MinimumSize
-		end
-		if type(options.MinimumSize) ~= "number" then
-			options.MinimumSize = nil
-		elseif options.MinimumSize < 1 then
-			options.MinimumSize = 1
-		end
-		
-		if type(options.MaximumSize) ~= "number" then
-			options.MaximumSize = defaults.MaximumSize
-		end
-		if type(options.MaximumSize) ~= "number" then
-			options.MaximumSize = nil
-		elseif options.MaximumSize < 1 then
-			options.MaximumSize = 1
-		end
-		
-		if type(options.Size) ~= "number" then
-			options.Size = defaults.Size
-		end
-	end
-	
-	local font = options.Font
-	if font == nil then
-		options.Font = defaults.Font
-		textBoundsParams.Font = defaults.Font
-		
-		-- Roblox font size limit.
-		if options.Size > 100 then
-			options.Size = 100
-		end
-	elseif typeof(font) == "Font" then -- Roblox font.
-		-- Verify font.
-		textBoundsParams.Font = options.Font
-		textBoundsParams.Text = ""
-		local _, result = pcall(TextService.GetTextBoundsAsync, TextService, textBoundsParams)
-		if type(result) == "string" then
-			warn("Invalid font. Fallback to default.")
-			options.Font = defaults.Font
-			textBoundsParams.Font = defaults.Font
-		end
-		
-		-- Roblox font size limit.
-		if options.Size > 100 then
-			options.Size = 100
-		end
-	else
-		if not userFonts[font] then
-			-- Warn about invalid font.
-			warn("Invalid font. Fallback to default.")
-			
-			-- Apply default font.
-			options.Font = defaults.Font
-			textBoundsParams.Font = defaults.Font
-			
-			-- Roblox font size limit.
-			if options.Size > 100 then
-				options.Size = 100
-			end
-		end
-	end
-	
-	local lineHeight = options.LineHeight
-	if type(lineHeight) ~= "number" then
-		options.LineHeight = defaults.LineHeight
-	elseif lineHeight < 0 then
-		options.LineHeight = 0
-	end
-	local characterSpacing = options.CharacterSpacing
-	if type(characterSpacing) ~= "number" then
-		options.CharacterSpacing = defaults.CharacterSpacing
-	elseif characterSpacing < 0 then
-		options.CharacterSpacing = 0
-	end
-	
-	if typeof(options.Color) ~= "Color3" then
-		options.Color = defaults.Color
-	end
-	if type(options.Transparency) ~= "number" then
-		options.Transparency = defaults.Transparency
-	end
-	
-	local pixelated = options.Pixelated
-	if pixelated == false then
-		options.Pixelated = nil
-	elseif pixelated ~= true then
-		options.Pixelated = defaults.Pixelated
-	end
-	
-	if typeof(options.Offset) ~= "Vector2" then
-		options.Offset = defaults.Offset
-	end
-	if type(options.Rotation) ~= "number" then
-		options.Rotation = defaults.Rotation
-	end
-	
-	local strokeSize = options.StrokeSize
-	local strokeColor = options.StrokeColor
-	local strokeTransparency = options.StrokeTransparency
-	if type(strokeSize) ~= "number" then
-		if typeof(strokeColor) == "Color3" then
-			options.StrokeSize = defaults.StrokeSize
-			if type(strokeTransparency) ~= "number" then
-				options.StrokeTransparency = options.Transparency
-			end
-		elseif type(strokeTransparency) == "number" then
-			options.StrokeSize = defaults.StrokeSize
-			if type(strokeColor) ~= "number" then
-				options.StrokeColor = defaults.StrokeColor
-			end
-		else
-			options.StrokeSize = nil
-			options.StrokeColor = nil
-			options.StrokeTransparency = nil
-		end
-	else
-		if strokeSize < 1 then
-			options.StrokeSize = 1
-		end
-		if typeof(strokeColor) ~= "Color3" then
-			options.StrokeColor = defaults.StrokeColor
-		end
-		if type(strokeTransparency) ~= "number" then
-			options.StrokeTransparency = options.Transparency
-		end
-	end
-	
-	local shadowOffset = options.ShadowOffset
-	local shadowColor = options.ShadowColor
-	local shadowTransparency = options.ShadowTransparency
-	if typeof(shadowOffset) ~= "Vector2" then
-		if typeof(shadowColor) == "Color3" then
-			options.ShadowOffset = defaults.ShadowOffset
-			if type(shadowTransparency) ~= "number" then
-				options.ShadowTransparency = options.Transparency
-			end
-		elseif type(shadowTransparency) == "number" then
-			options.ShadowOffset = defaults.ShadowOffset
-			if type(shadowColor) ~= "number" then
-				options.ShadowColor = defaults.ShadowColor
-			end
-		else
-			options.ShadowOffset = nil
-			options.ShadowColor = nil
-			options.ShadowTransparency = nil
-		end
-	else
-		if typeof(shadowColor) ~= "Color3" then
-			options.ShadowColor = defaults.ShadowColor
-		end
-		if type(shadowTransparency) ~= "number" then
-			options.ShadowTransparency = options.Transparency
-		end
-	end
-	
-	local truncate = options.Truncate
-	if truncate == false then
-		options.Truncate = nil
-	elseif truncate ~= true then
-		options.Truncate = defaults.Truncate
-	end
-	
-	if not xAlignments[options.XAlignment] then
-		options.XAlignment = defaults.XAlignment
-	end
-	if not yAlignments[options.YAlignment] then
-		options.YAlignment = defaults.YAlignment
-	end
-	
-	local wordSorting = options.WordSorting
-	if wordSorting == false then
-		options.WordSorting = nil
-	elseif wordSorting ~= true then
-		options.WordSorting = defaults.WordSorting
-	end
-	
-	local lineSorting = options.LineSorting
-	if lineSorting == false then
-		options.LineSorting = nil
-	elseif lineSorting ~= true then
-		options.LineSorting = defaults.LineSorting
-	end
-end
-
 local function enableDynamic(frame, text)
 	frameSizeConnections[frame] = frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
 		-- Clear current text.
@@ -1733,14 +1293,13 @@ module.Create = function(frame: GuiObject, text: string, options: Options?)
 		end
 		
 		-- Handle destroying.
-		frame.Destroying:Connect(function()
+		frame.Destroying:Once(function()
 			-- Clear frame.
 			clear(frame)
 			-- Destroy signals.
 			frameUpdateSignals[frame]:Destroy()
 			frameUpdateSignals[frame] = nil
 			-- Remove connections.
-			frameSizeConnections[frame]:Disconnect()
 			frameSizeConnections[frame] = nil
 			-- Clear data.
 			frameText[frame] = nil
