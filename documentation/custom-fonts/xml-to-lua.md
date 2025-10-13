@@ -1,6 +1,6 @@
 # XML to Lua
 
-Visit the [LuaXML](https://alexanderlindholt.github.io/LuaXML/) website.
+Visit my website [LuaXML](https://alexanderlindholt.github.io/LuaXML/).
 
-Press `Browse...` and select your font file.\
-Now copy the output. We're going to use it later.
+Select or drag-and-drop your font file.\
+Then copy the output — we’re going to use it later.
