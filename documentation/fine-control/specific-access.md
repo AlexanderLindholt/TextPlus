@@ -23,7 +23,7 @@ You can always access the exact line, word or character you want by indexing lik
 frame["1"]
 ```
 
-With some sorting enabled, you'll be able to easily access and loop through specific lines and words.
+With some sorting enabled, you’ll be able to easily access and loop through specific lines and words.
 
 
 

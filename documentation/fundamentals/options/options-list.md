@@ -23,7 +23,7 @@ Most of the following defaults can be overwritten by [custom defaults](custom-de
 {% endhint %}
 
 {% hint style="warning" %}
-Defaults marked with _<mark style="color:$warning;">**colored bold italic**</mark>_ can't be overwritten by custom defaults.
+Defaults marked with _<mark style="color:$warning;">**colored bold italic**</mark>_ can’t be overwritten by custom defaults.
 {% endhint %}
 
 {% hint style="info" %}

@@ -21,7 +21,7 @@ layout:
 You can actually replace the default defaults with your own defaults of choice.
 
 Simply create a new module and name it whatever you want — `TextDefaults` is recommended.\
-It's crucial that you give it the [tag](https://create.roblox.com/docs/studio/properties#instance-tags) `TextDefaults`, so that Text+ can identify it.
+It’s crucial that you give it the [tag](https://create.roblox.com/docs/studio/properties#instance-tags) `TextDefaults`, so that Text+ can identify it.
 
 The module has to return a table, like this:
 
@@ -32,10 +32,10 @@ return {
 ```
 
 {% hint style="success" %}
-You don't need to list all options. Those not provided will stay at the default default.
+You don’t need to list all options. Those not provided will stay at the default default.
 {% endhint %}
 
-Here's the default defaults:
+Here’s the default defaults:
 
 ```lua
 return {

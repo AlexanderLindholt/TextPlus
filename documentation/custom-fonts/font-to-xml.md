@@ -5,7 +5,7 @@
 ### Visit font generation website
 
 Head over to [snowb.org](https://snowb.org/), where we’re going to generate the necessary font files.\
-It's a free, simple bitmap font generation website.
+It’s a free, simple bitmap font generation website.
 {% endstep %}
 
 {% step %}
@@ -14,7 +14,7 @@ It's a free, simple bitmap font generation website.
 You’ll have to specify which characters you want to include in your font.\
 This is done in the `Glyphs` section in the top-left corner.
 
-There's often already all the characters you need by default.\
+There’s often already all the characters you need by default.\
 But feel free to add any extra characters you desire!
 {% endstep %}
 

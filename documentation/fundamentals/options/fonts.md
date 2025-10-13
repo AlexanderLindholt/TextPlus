@@ -24,7 +24,7 @@ It accepts two types of data:
 * [A `Font` object](#user-content-fn-1)[^1].
 * A custom font data table.
 
-You can use Roblox's officially supported fonts like this:
+You can use Roblox’s officially supported fonts like this:
 
 ```lua
 Text.Create(
@@ -44,7 +44,7 @@ Text.Create(
 
 You can find a lot of fonts on [the documentation page](https://create.roblox.com/docs/reference/engine/datatypes/Font).
 
-Simply copy the asset id from the font list and paste it into the `Font` object's `Family`.
+Simply copy the asset id from the font list and paste it into the `Font` object’s `Family`.
 
 ### Creator store fonts
 
@@ -59,11 +59,11 @@ print(game.Selection:Get()[1].FontFace.Family)
 ```
 
 It will output the asset id you need.\
-Simply copy-and-paste it into the `Font` object's `Family`.
+Simply copy-and-paste it into the `Font` object’s `Family`.
 
 ### Custom fonts
 
-If it's still not enough, custom fonts offer endless possibilities.\
+If it’s still not enough, custom fonts offer endless possibilities.\
 Learn all about it in the dedicated section:
 
 {% content-ref url="broken-reference" %}

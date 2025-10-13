@@ -1,6 +1,6 @@
 # Introduction
 
-You'll be creating text using GUI objects as frames, like this:
+You’ll be creating text using GUI objects as frames, like this:
 
 ```lua
 local Text = require(script.TextPlus)

@@ -1,11 +1,11 @@
 # Full iteration
 
-It's pretty simple to iterate through the text.\
+It’s pretty simple to iterate through the text.\
 Just make sure you respect sorting.
 
 ## Simple way
 
-It's clean and easy to use the `GetCharacters` function, which will iterate through _all_ characters.\
+It’s clean and easy to use the `GetCharacters` function, which will iterate through _all_ characters.\
 This function is optimized and respects all sorting.
 
 You can simply iterate through the characters like this:
@@ -22,7 +22,7 @@ end
 You can also manually loop through.\
 This might be useful in certain cases.
 
-Here's an example with full sorting on:
+Here’s an example with full sorting on:
 
 ```lua
 for lineNumber, line in frame:GetChildren() do
@@ -37,7 +37,7 @@ for lineNumber, line in frame:GetChildren() do
 end
 ```
 
-If you have only one of the sorting types enabled, there will only be one layer of folders, and you'll have to do something like this:
+If you have only one of the sorting types enabled, there will only be one layer of folders, and you’ll have to do something like this:
 
 ```lua
 for wordNumber, word in frame:GetChildren() do

@@ -23,7 +23,7 @@ MyFont = {
 }
 ```
 
-For fonts that have multiple weights and/or styles, it's recommended to use the following format:
+For fonts that have multiple weights and/or styles, it’s recommended to use the following format:
 
 ```lua
 return {

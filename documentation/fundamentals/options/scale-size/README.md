@@ -35,7 +35,7 @@ It will use the specified axis — for `XY` it will get the in-between of the tw
 
 {% hint style="info" %}
 When using a\
-\- ScreenGui: `Root` is the user's screen.\
+\- ScreenGui: `Root` is the user’s screen.\
 \- SurfaceGui: `Root` is the SurfaceGui.
 
 `Frame` will always be the text the frame is contained within.
@@ -45,7 +45,7 @@ When using a\
 
 ## Visualizing & calculating size (for root only)
 
-You can easily find the `Size` that maintains the aspect ratio you are seeing in the studio viewport using the code snippets I've made for you.
+You can easily find the `Size` that maintains the aspect ratio you are seeing in the studio viewport using the code snippets I’ve made for you.
 
 Run the code for your GUI root in the command bar:
 
@@ -66,6 +66,6 @@ local scaleSize = "X" local textLabelSize = 14										local surfaceGui = game.
 {% endcode %}
 
 \
-_Make sure to input your desired `ScaleSize` type/axis and the TextLabel's size._
+_Make sure to input your desired `ScaleSize` type/axis and the TextLabel’s size._
 
 It should print out a number in the `Output` window. This is what you want to input for the `Size` to maintain the aspect ratio you are seeing in studio.
