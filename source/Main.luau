@@ -21,7 +21,7 @@ TTTTTTTTTTTTTTTTTTTTTT
                            eeeeeeeeee        xxxxxx                 ttttttttt                       
                                                                       ttttttt                       
 
-v1.29.0
+v1.29.1
 
 An efficient, robust, open-source text-rendering library for
 Roblox, featuring custom fonts and advanced text control.
@@ -1297,8 +1297,10 @@ module.Create = function(frame: GuiObject, text: string, options: Options?)
 			-- Clear frame.
 			clear(frame)
 			-- Destroy signals.
-			frameUpdateSignals[frame]:Destroy()
-			frameUpdateSignals[frame] = nil
+			if Signal then
+				frameUpdateSignals[frame]:Destroy()
+				frameUpdateSignals[frame] = nil
+			end
 			-- Remove connections.
 			frameSizeConnections[frame] = nil
 			-- Clear data.
