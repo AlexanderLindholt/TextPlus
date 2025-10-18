@@ -1,6 +1,21 @@
-# XML to Lua
+# XML to Luau
 
-Visit my website [LuaXML](https://alexanderlindholt.github.io/LuaXML/).
+{% stepper %}
+{% step %}
+### Visit conversion website
 
-Select or drag-and-drop your font file.\
-Then copy the output — we’re going to use it later.
+Head over to my website [LuauXML](https://alexanderlindholt.github.io/LuauXML/).
+{% endstep %}
+
+{% step %}
+### Import XML
+
+Select or drag-and-drop your XML font file.
+{% endstep %}
+
+{% step %}
+### Copy or save output
+
+Make sure to save the output for later.
+{% endstep %}
+{% endstepper %}

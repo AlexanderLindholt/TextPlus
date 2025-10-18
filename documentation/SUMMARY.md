@@ -33,7 +33,7 @@
 * [Introduction](custom-fonts/introduction.md)
 * [Data module](custom-fonts/data-module.md)
 * [Font to XML](custom-fonts/font-to-xml.md)
-* [XML to Lua](custom-fonts/xml-to-lua.md)
+* [XML to Luau](custom-fonts/xml-to-lua.md)
 * [Upload font image](custom-fonts/upload-font-image.md)
 * [Import font data](custom-fonts/import-font-data.md)
 * [Using the fonts](custom-fonts/using-the-fonts.md)
