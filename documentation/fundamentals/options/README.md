@@ -46,6 +46,5 @@ Text.GetOptions(frame)
 ```
 
 {% hint style="info" %}
-The options received from the `GetOptions` function will always be valid, and will contain _all_ options except booleans set to `false` and those that are optional.
+The options received from the `GetOptions` function will always be valid, and will contain _all_ options except booleans set to `false` and those that aren’t mandatory.
 {% endhint %}
-
