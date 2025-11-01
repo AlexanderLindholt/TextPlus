@@ -1,6 +1,23 @@
 ---
 cover: .gitbook/assets/Cover.png
 coverY: 0
+layout:
+  width: default
+  cover:
+    visible: true
+    size: full
+  title:
+    visible: true
+  description:
+    visible: false
+  tableOfContents:
+    visible: true
+  outline:
+    visible: true
+  pagination:
+    visible: true
+  metadata:
+    visible: true
 ---
 
 # Welcome
@@ -13,7 +30,5 @@ Get ready to experience text in Roblox like it should’ve been.
   * Utilize awesome text styling like justified alignments and spacing controls.
   * Effortlessly setup text scaling, so that it’s the perfect size on all devices.
     * _Differs from `TextScaled`. Learn more at its documentation._
-
-
 
 **Ready to learn all about it? Let’s go!**

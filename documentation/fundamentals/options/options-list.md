@@ -23,7 +23,7 @@ Most of the following defaults can be overwritten by [custom defaults](custom-de
 {% endhint %}
 
 {% hint style="warning" %}
-Defaults marked with _**colored bold italic**_ can’t be overwritten by custom defaults.
+Default values marked with _**bold italic**_ can’t be overwritten by custom defaults.
 {% endhint %}
 
 {% hint style="info" %}
@@ -32,64 +32,64 @@ _<mark style="color:red;">**C**</mark><mark style="color:orange;">**o**</mark><m
 {% endhint %}
 
 *   **Font:** Font | CustomFont\
-    \&#xNAN;_Default:_ `Font.new("rbxasset://fonts/families/SourceSansPro.json")`
+    &#xNAN;_&#x44;efault:_ `Font.new("rbxasset://fonts/families/SourceSansPro.json")`
 
     ​
 * **Size:** number\
-  \&#xNAN;_Default:_ `14`\
+  &#xNAN;_&#x44;efault:_ `14`\
   ​
 * **ScaleSize:** "RootX" | "RootY" | "RootXY" |\
-  "FrameX" | "FrameY" | "FrameXY"\
-  \&#xNAN;_Default:_ `nil`
+  &#x20;                     "FrameX" | "FrameY" | "FrameXY"\
+  &#xNAN;_&#x44;efault:_ `nil`
 * **MinimumSize:** number\
-  \&#xNAN;_Default:_ `nil`
+  &#xNAN;_&#x44;efault:_ `nil`
 * **MaximumSize:** number\
-  \&#xNAN;_Default:_ `nil`\
+  &#xNAN;_&#x44;efault:_ `nil`\
   ​
 * **Color:** Color3\
-  \&#xNAN;_Default:_ `Color3.fromRGB(0, 0, 0)`
+  &#xNAN;_&#x44;efault:_ `Color3.fromRGB(0, 0, 0)`
 * **Transparency:** number\
-  \&#xNAN;_Default:_ `0`\
+  &#xNAN;_&#x44;efault:_ `0`\
   ​
 * **Pixelated:** boolean\
-  \&#xNAN;_Default:_ `false`\
+  &#xNAN;_&#x44;efault:_ `false`\
   ​
 * **Offset:** Vector2\
-  \&#xNAN;_Default:_ `Vector2.new(0, 0)`
+  &#xNAN;_&#x44;efault:_ `Vector2.new(0, 0)`
 * **Rotation:** number\
-  \&#xNAN;_Default:_ `0`\
+  &#xNAN;_&#x44;efault:_ `0`\
   ​
 * <mark style="color:yellow;">**StrokeSize:**</mark> <mark style="color:yellow;">number</mark>\
-  \&#xNAN;_<mark style="color:yellow;">Default:</mark>_ <mark style="color:yellow;">`5`</mark>
+  &#xNAN;_<mark style="color:yellow;">Default:</mark>_ <mark style="color:yellow;">`5`</mark>
 * <mark style="color:yellow;">**StrokeColor:**</mark> <mark style="color:yellow;">Color3</mark>\
-  \&#xNAN;_<mark style="color:yellow;">Default:</mark>_ <mark style="color:yellow;">`Color3.fromRGB(0, 0, 0)`</mark>
+  &#xNAN;_<mark style="color:yellow;">Default:</mark>_ <mark style="color:yellow;">`Color3.fromRGB(0, 0, 0)`</mark>
 * <mark style="color:yellow;">**StrokeTransparency:**</mark> <mark style="color:yellow;">number</mark>\
-  \&#xNAN;_<mark style="color:yellow;">Default:</mark>_ _**`Transparency`**_\
+  &#xNAN;_<mark style="color:yellow;">Default:</mark>_ _**`Transparency`**_\
   ​
 * <mark style="color:purple;">**ShadowOffset:**</mark> <mark style="color:purple;">Vector2</mark>\
-  \&#xNAN;_<mark style="color:purple;">Default:</mark>_ <mark style="color:purple;">`Vector2.new(0, 20)`</mark>
+  &#xNAN;_<mark style="color:purple;">Default:</mark>_ <mark style="color:purple;">`Vector2.new(0, 20)`</mark>
 * <mark style="color:purple;">**ShadowColor:**</mark> <mark style="color:purple;">Color3</mark>\
-  \&#xNAN;_<mark style="color:purple;">Default:</mark>_ <mark style="color:purple;">`Color3.fromRGB(50, 50, 50)`</mark>
+  &#xNAN;_<mark style="color:purple;">Default:</mark>_ <mark style="color:purple;">`Color3.fromRGB(50, 50, 50)`</mark>
 * <mark style="color:purple;">**ShadowTransparency:**</mark> <mark style="color:purple;">number</mark>\
-  \&#xNAN;_<mark style="color:purple;">Default:</mark>_ _**`Transparency`**_\
+  &#xNAN;_<mark style="color:purple;">Default:</mark>_ _**`Transparency`**_\
   ​
 * **LineHeight:** number\
-  \&#xNAN;_Default:_ `1`
+  &#xNAN;_&#x44;efault:_ `1`
 * **CharacterSpacing:** number\
-  \&#xNAN;_Default:_ `1`\
+  &#xNAN;_&#x44;efault:_ `1`\
   ​
 * **Truncate:** boolean\
-  \&#xNAN;_Default:_ `false`\
+  &#xNAN;_&#x44;efault:_ `false`\
   ​
 * **XAlignment:** "Left" | "Center" | "Right" | "Justified"\
-  \&#xNAN;_Default:_ `"Left"`
+  &#xNAN;_&#x44;efault:_ `"Left"`
 * **YAlignment:** "Top" | "Center" | "Bottom" | "Justified"\
-  \&#xNAN;_Default:_ `"Top"`\
+  &#xNAN;_&#x44;efault:_ `"Top"`\
   ​
 * **WordSorting:** boolean\
-  \&#xNAN;_Default:_ `false`
+  &#xNAN;_&#x44;efault:_ `false`
 * **LineSorting:** boolean\
-  \&#xNAN;_Default:_ `false`\
+  &#xNAN;_&#x44;efault:_ `false`\
   ​
 * **Dynamic:** boolean\
-  \&#xNAN;_Default:_ `false`
+  &#xNAN;_&#x44;efault:_ `false`
