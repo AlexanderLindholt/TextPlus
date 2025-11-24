@@ -1,34 +1,36 @@
 ---
-cover: .gitbook/assets/Cover.png
-coverY: 0
-layout:
-  width: default
-  cover:
-    visible: true
-    size: full
-  title:
-    visible: true
-  description:
-    visible: false
-  tableOfContents:
-    visible: true
-  outline:
-    visible: true
-  pagination:
-    visible: true
-  metadata:
-    visible: true
+icon: box-archive
 ---
 
-# Welcome
+# Installation
 
-Get ready to experience text in Roblox like it should’ve been.
+{% stepper %}
+{% step %}
+### Get the module
 
-* **Custom fonts:** Use any font file, whether one of your own or one you found online.
-* **Advanced control**:
-  * Easily transform and style any individual character, word or line with freedom.
-  * Utilize awesome text styling like justified alignments and spacing controls.
-  * Effortlessly setup text scaling, so that it’s the perfect size on all devices.
-    * _Differs from `TextScaled`. Learn more at its documentation._
+{% tabs %}
+{% tab title="Creator Store" %}
+<a href="https://create.roblox.com/store/asset/138658986432597" class="button primary">Get Roblox Asset</a>
 
-**Ready to learn all about it? Let’s go!**
+* Click `Get Model`.
+* Open the ToolBox in Roblox Studio.
+* Go to the `Inventory` tab.
+* Click on `Text+` to insert.
+{% endtab %}
+
+{% tab title="GitHub" %}
+<a href="https://github.com/AlexanderLindholt/TextPlus/releases/latest" class="button primary">See Latest Release</a>
+
+* Download the `.rbxm` file.
+* Find the file in your file explorer.
+* Drag the file into Roblox Studio.
+{% endtab %}
+{% endtabs %}
+{% endstep %}
+
+{% step %}
+### Place it
+
+Find a great place for the module, where other scripts can reference it.
+{% endstep %}
+{% endstepper %}

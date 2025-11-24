@@ -27,8 +27,6 @@ There are six scale-size options:
 * "FrameY"
 * "FrameXY"
 
-
-
 Enabling scale-size will make `Size` a percentage of the root/frame size instead of a fixed pixel amount. Additionally, it will make all other offsets and sizes relative to the `Size`.
 
 It will use the specified axis — for `XY` it will get the in-between of the two axis sizes.
@@ -40,8 +38,6 @@ When using a\
 
 `Frame` will always be the text the frame is contained within.
 {% endhint %}
-
-
 
 ## Visualizing & calculating size (for root only)
 
@@ -66,6 +62,6 @@ local scaleSize = "X" local textLabelSize = 14										local surfaceGui = game.
 {% endcode %}
 
 \
-_Make sure to input your desired `ScaleSize` type/axis and the TextLabel’s size._
+&#xNAN;_&#x4D;ake sure to input your desired `ScaleSize` type/axis and the TextLabel’s size._
 
 It should print out a number in the `Output` window. This is what you want to input for the `Size` to maintain the aspect ratio you are seeing in studio.

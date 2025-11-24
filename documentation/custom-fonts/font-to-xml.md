@@ -2,14 +2,14 @@
 
 {% stepper %}
 {% step %}
-### Visit font generation website
+#### Visit font generation website
 
 Head over to [snowb.org](https://snowb.org/), where we’re going to generate the necessary font files.\
 It’s a free, simple bitmap font generation website.
 {% endstep %}
 
 {% step %}
-### Select characters
+#### Select characters
 
 You’ll have to specify which characters you want to include in your font.\
 This is done in the `Glyphs` section in the top-left corner.
@@ -19,7 +19,7 @@ But feel free to add any extra characters you desire!
 {% endstep %}
 
 {% step %}
-### Font settings
+#### Font settings
 
 Head over to the `Font` section, located right below `Glyphs`.
 
@@ -34,7 +34,7 @@ For pixel-art fonts, you should set the size significantly smaller of course.
 {% endstep %}
 
 {% step %}
-### Layout settings
+#### Layout settings
 
 Head over to the `Layout` section, located right below `Font`.
 
@@ -42,7 +42,7 @@ Set `Padding` and `Spacing` to `0`.
 {% endstep %}
 
 {% step %}
-### Fill settings
+#### Fill settings
 
 Head over to the `Fill` section, located in the top-right corner.
 
@@ -54,7 +54,7 @@ A pure white color means leaving your original font color untouched.
 {% endstep %}
 
 {% step %}
-### Generate and export files
+#### Generate and export files
 
 Click `Export` in the top bar.\
 Input a `File Name` for your font.\
