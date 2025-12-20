@@ -25,7 +25,7 @@
 * [Introduction](fine-control/introduction.md)
 * [Full iteration](fine-control/full-iteration.md)
 * [Specific access](fine-control/specific-access.md)
-* [Transform and style](fine-control/transform-and-style.md)
+* [Modification](fine-control/transform-and-style.md)
 
 ## Custom fonts
 

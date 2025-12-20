@@ -1,5 +1,4 @@
 ---
-icon: gear
 layout:
   width: default
   title:
@@ -16,7 +15,7 @@ layout:
     visible: true
 ---
 
-# Transform and style
+# Modification
 
 All characters are instances that can be directly modified:
 

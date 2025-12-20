@@ -21,7 +21,7 @@ layout:
 You can enable signals by installing a signal library.
 
 {% hint style="info" %}
-[Signal+](https://devforum.roblox.com/t/3552231) is highly recommended for performance.
+[Signal+](https://devforum.roblox.com/t/3552231) is highly recommended because it’s the best.
 {% endhint %}
 
-Makes sure to [tag](https://create.roblox.com/docs/studio/properties#instance-tags) the module `Signal`.
+Make sure to [tag](https://create.roblox.com/docs/studio/properties#instance-tags) the module `Signal`.

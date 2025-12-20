@@ -4,7 +4,7 @@
 {% step %}
 ### Visit conversion website
 
-Head over to my website [LuauXML](https://alexanderlindholt.github.io/LuauXML/).
+Head over to my website, [LuauXML](https://alexanderlindholt.github.io/LuauXML/).
 {% endstep %}
 
 {% step %}

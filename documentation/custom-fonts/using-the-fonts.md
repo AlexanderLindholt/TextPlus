@@ -1,7 +1,3 @@
----
-icon: gear
----
-
 # Using the fonts
 
 Using custom fonts is extremely simple.

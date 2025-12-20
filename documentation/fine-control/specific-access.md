@@ -40,6 +40,7 @@ local character = frame["1"] -- (Character-1)
 ```lua
 local word = frame["1"] -- (Word-1) — Word sorting.
 local word = frame["1"]["1"] -- (Line-1 -> Word-1) — Line+word sorting.
+
 for characterNumber, character in word:GetChildren() do
 	-- For Roblox fonts, 'character' will be a TextLabel.
 	-- For custom fonts, 'character' will be an ImageLabel.
