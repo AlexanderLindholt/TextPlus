@@ -27,7 +27,7 @@ With some sorting enabled, you’ll be able to easily access and loop through sp
 
 
 
-### Character (requires having no sorting)
+### Access a character (requires having no sorting)
 
 ```lua
 local character = frame["1"] -- (Character-1)
@@ -35,7 +35,7 @@ local character = frame["1"] -- (Character-1)
 -- For custom fonts, 'character' will be an ImageLabel.
 ```
 
-### Word (requires word sorting)
+### Access a word (requires word sorting)
 
 ```lua
 local word = frame["1"] -- (Word-1) — Word sorting.
@@ -46,7 +46,7 @@ for characterNumber, character in word:GetChildren() do
 end
 ```
 
-### Line (requires line sorting)
+### Access a line (requires line sorting)
 
 ```lua
 local line = frame["1"] -- (Line-1)

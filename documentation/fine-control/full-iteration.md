@@ -3,7 +3,7 @@
 It’s pretty simple to iterate through the text.\
 Just make sure you respect sorting.
 
-## Simple way
+## Simple method
 
 It’s clean and easy to use the `GetCharacters` function, which will iterate through _all_ characters.\
 This function is optimized and respects all sorting.
@@ -17,10 +17,10 @@ for characterNumber, character in Text.GetCharacters(frame) do
 end
 ```
 
-## Advanced way
+## Advanced method
 
 You can also manually loop through.\
-This might be useful in certain cases.
+This is useful for more controlled iteration.
 
 Here’s an example with full sorting on:
 
@@ -48,4 +48,3 @@ for wordNumber, word in frame:GetChildren() do
 	end
 end
 ```
-
