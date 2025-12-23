@@ -1,12 +1,14 @@
 # Introduction
 
-Text+ offers custom fonts inside of Roblox.\
-Any `.ttf` and `.otf` font file is supported.
+Currently supported font files are:
 
-It uses 1 image per font.
+* [TTF (TrueType)](https://en.wikipedia.org/wiki/TrueType)
+* [OTF (OpenType)](https://en.wikipedia.org/wiki/OpenType)
+
+
 
 {% hint style="info" %}
-Weights and styles count as individual fonts.
+Weights and styles have to be split up into individual fonts.
 {% endhint %}
 
 {% hint style="success" %}

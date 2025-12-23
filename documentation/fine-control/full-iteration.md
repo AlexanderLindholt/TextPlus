@@ -1,6 +1,6 @@
 # Full iteration
 
-It’s pretty simple to iterate through the text.\
+It’s quite simple to iterate through the text.\
 Just make sure you respect sorting.
 
 ## Simple method

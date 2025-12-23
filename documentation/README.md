@@ -9,7 +9,7 @@ icon: box-archive
 ### Get the module
 
 {% tabs %}
-{% tab title="GitHub (recommended)" %}
+{% tab title="GitHub (Recommended)" %}
 <a href="https://github.com/AlexanderLindholt/TextPlus/releases/latest" class="button primary">See Latest Release</a>
 
 * Download the `.rbxm` file.
