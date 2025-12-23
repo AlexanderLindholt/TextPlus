@@ -5,7 +5,7 @@
 An efficient, robust, open-source text-rendering library for<br>
 Roblox, featuring custom fonts and advanced text control.
 
-[<img src="https://raw.githubusercontent.com/AlexanderLindholt/LinkButtons/refs/heads/main/Module.png"></img>](https://create.roblox.com/store/asset/138658986432597) ​ [<img src="https://raw.githubusercontent.com/AlexanderLindholt/LinkButtons/refs/heads/main/DevForum.png"></img>](https://devforum.roblox.com/t/3521684)
+[<img src="https://raw.githubusercontent.com/AlexanderLindholt/LinkButtons/refs/heads/main/Module.png"></img>](https://create.roblox.com/store/asset/138658986432597) ​ [<img src="https://raw.githubusercontent.com/AlexanderLindholt/LinkButtons/refs/heads/main/DevForum.png"></img>](https://devforum.roblox.com/t/3521684) ​ [<img src="https://raw.githubusercontent.com/AlexanderLindholt/LinkButtons/refs/heads/main/GitBook.png"></img>](https://alexxander.gitbook.io/textplus)
 </div>
 <br>
 ​<br>
