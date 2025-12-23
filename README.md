@@ -26,5 +26,5 @@ Experience text in Roblox like never before.
 - Blazingly fast, lag-free performance.
 - Catches errors with clear feedback.
 - Proper typing and documentation.
-<br>
-<br>
+
+# Check out showcases and more information [here](https://devforum.roblox.com/t/3521684)!
