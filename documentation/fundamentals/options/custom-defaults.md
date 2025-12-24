@@ -20,22 +20,10 @@ layout:
 
 You can actually replace the default defaults with your own defaults of choice.
 
-Simply create a new module and name it whatever you want — `TextDefaults` is recommended.\
-It’s crucial that you give it the [tag](https://create.roblox.com/docs/studio/properties#instance-tags) `TextDefaults`, so that Text+ can identify it.
+Simply create a new module in your game, then [tag](https://create.roblox.com/docs/studio/properties#instance-tags) it `TextDefaults`.
 
-The module has to return a table, like this:
-
-```lua
-return {
-	
-}
-```
-
-{% hint style="success" %}
-You don’t need to list all options. Those not provided will stay at the default default.
-{% endhint %}
-
-Here’s the default defaults:
+All you do is return a list of options whose defaults you want to modify.\
+Here are the default defaults:
 
 ```lua
 return {
@@ -73,3 +61,11 @@ return {
 	Dynamic = false
 }
 ```
+
+{% hint style="success" %}
+You don’t need to list all options. Those not provided will stay at the default default.
+{% endhint %}
+
+{% hint style="danger" %}
+Custom defaults are not verified. Therefore, be cautious of what you set them to, as they might cause errors if set incorrectly.
+{% endhint %}
