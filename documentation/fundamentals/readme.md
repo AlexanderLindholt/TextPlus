@@ -42,6 +42,7 @@ The frame can be any [GUI object](https://create.roblox.com/docs/reference/engin
 Adding any folders or labels might screw up the rendering process, since instances are cached and re-used.
 {% endhint %}
 
+\
 You can get the current text of a frame at any time like this:
 
 ```lua

@@ -66,6 +66,6 @@ return {
 You don’t need to list all options. Those not provided will stay at the default default.
 {% endhint %}
 
-{% hint style="danger" %}
+{% hint style="warning" %}
 Custom defaults are not verified. Therefore, be cautious of what you set them to, as they might cause errors if set incorrectly.
 {% endhint %}
