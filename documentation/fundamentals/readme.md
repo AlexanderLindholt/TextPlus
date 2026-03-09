@@ -1,20 +1,3 @@
----
-layout:
-  width: default
-  title:
-    visible: true
-  description:
-    visible: false
-  tableOfContents:
-    visible: true
-  outline:
-    visible: true
-  pagination:
-    visible: true
-  metadata:
-    visible: true
----
-
 # Introduction
 
 You’ll be creating text using GUI objects as frames, like this:
@@ -39,11 +22,11 @@ The frame can be any [GUI object](https://create.roblox.com/docs/reference/engin
 {% hint style="warning" %}
 **Content recognized as a part of the rendered text, including folders, will be cleared upon render.**
 
-Adding any folders or labels might screw up the rendering process, since instances are cached and re-used.
+Adding any folders or labels might screw up the rendering process as instances are cached and re-used.
 {% endhint %}
 
 \
-You can get the current text of a frame at any time like this:
+You can get the raw text content of a frame at any time through the following function:
 
 ```lua
 Text.GetText(frame)

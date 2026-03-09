@@ -1,19 +1,5 @@
 ---
 icon: list
-layout:
-  width: default
-  title:
-    visible: true
-  description:
-    visible: false
-  tableOfContents:
-    visible: true
-  outline:
-    visible: true
-  pagination:
-    visible: true
-  metadata:
-    visible: true
 ---
 
 # Options list
@@ -39,7 +25,7 @@ _<mark style="color:red;">**C**</mark><mark style="color:orange;">**o**</mark><m
   &#xNAN;_&#x44;efault:_ `14`\
   ​
 * **ScaleSize:** "RootX" | "RootY" | "RootXY" |\
-  &#x20;                     "FrameX" | "FrameY" | "FrameXY"\
+  &#x20;                   "FrameX" | "FrameY" | "FrameXY"\
   &#xNAN;_&#x44;efault:_ `nil`
 * **MinimumSize:** number\
   &#xNAN;_&#x44;efault:_ `nil`

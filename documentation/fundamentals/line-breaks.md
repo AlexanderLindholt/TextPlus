@@ -8,15 +8,15 @@ There are two simple ways to do this:
 You can use `\n` to break to the next line at any place.\
 `\n` will not be shown in the text.
 
-{% hint style="warning" %}
-Not a `/` (slash) but a `\` (backslash).
-{% endhint %}
-
 Example:
 
 ```lua
 "First line\nSecond line"
 ```
+
+{% hint style="warning" %}
+Not a `/` (slash) but a `\` (backslash).
+{% endhint %}
 {% endtab %}
 
 {% tab title="Multiline strings" %}

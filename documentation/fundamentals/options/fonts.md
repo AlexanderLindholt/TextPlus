@@ -1,20 +1,3 @@
----
-layout:
-  width: default
-  title:
-    visible: true
-  description:
-    visible: false
-  tableOfContents:
-    visible: true
-  outline:
-    visible: true
-  pagination:
-    visible: true
-  metadata:
-    visible: true
----
-
 # Fonts
 
 `Font` is one of the many options.
@@ -66,8 +49,8 @@ Simply copy-and-paste it into the `Font` object’s `Family`.
 If it’s still not enough, custom fonts offer endless possibilities.\
 Learn all about it in the dedicated section:
 
-{% content-ref url="broken-reference" %}
-[Broken link](broken-reference)
+{% content-ref url="/broken/pages/B187lJbTNyHjhqXicfuF" %}
+[Broken link](/broken/pages/B187lJbTNyHjhqXicfuF)
 {% endcontent-ref %}
 
 [^1]: A Roblox font object created with `Font.new()`.

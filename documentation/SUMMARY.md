@@ -20,12 +20,12 @@
 * [Signals](fundamentals/signals/README.md)
   * [Update](fundamentals/signals/update.md)
 
-## Fine-control
+## Advanced Control
 
-* [Introduction](fine-control/introduction.md)
-* [Full iteration](fine-control/full-iteration.md)
-* [Specific access](fine-control/specific-access.md)
-* [Modification](fine-control/transform-and-style.md)
+* [Introduction](advanced-control/introduction.md)
+* [Full iteration](advanced-control/full-iteration.md)
+* [Specific access](advanced-control/specific-access.md)
+* [Modification](advanced-control/transform-and-style.md)
 
 ## Custom fonts
 

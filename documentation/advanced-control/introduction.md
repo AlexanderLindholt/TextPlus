@@ -1,20 +1,3 @@
----
-layout:
-  width: default
-  title:
-    visible: true
-  description:
-    visible: false
-  tableOfContents:
-    visible: true
-  outline:
-    visible: true
-  pagination:
-    visible: true
-  metadata:
-    visible: true
----
-
 # Introduction
 
 The sorting options in the customization are crucial to fine-control. Using word and line sorting, you can not only modify individual characters, but whole words and lines together, easily.
