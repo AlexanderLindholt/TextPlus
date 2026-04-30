@@ -4,12 +4,12 @@ icon: gear
 
 # Custom defaults
 
-You can actually replace the default defaults with your own defaults of choice.
+You can replace the default defaults with your own defaults of choice.
 
 Simply create a new module in your game, then [tag](https://create.roblox.com/docs/studio/properties#instance-tags) it `TextDefaults`.
 
 All you do is return a list of options whose defaults you want to modify.\
-Here are the default defaults:
+Here are the default defaults for reference:
 
 ```lua
 return {
