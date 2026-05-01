@@ -6,7 +6,6 @@ local TextService = game:GetService("TextService")
 
 -- Option defaults.
 local defaults = require(script.Parent.Defaults)
-
 -- User fonts.
 local userFonts = require(script.Parent.Fonts)
 
