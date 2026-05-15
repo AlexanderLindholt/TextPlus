@@ -2,6 +2,7 @@
 
 -- Services.
 local CollectionService = game:GetService("CollectionService")
+local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 
 -- Load and store all custom fonts.
@@ -21,7 +22,7 @@ for _, module in CollectionService:GetTagged("Fonts") do
 			else
 				local player = Players.LocalPlayer
 				local load
-				if player then -- If running on client.
+				if player and RunService:IsRunning() then -- If running on client.
 					local screenGui = Instance.new("ScreenGui")
 					screenGui.Parent = player.PlayerGui
 					
