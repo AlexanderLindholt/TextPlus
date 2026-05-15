@@ -1,6 +1,6 @@
 # Introduction
 
-You’ll be creating text using GUI objects as frames, like this:
+You’ll be creating text using GUI objects as frames, as such:
 
 ```lua
 local Text = require(script.TextPlus)
@@ -13,7 +13,7 @@ Text.Create(
 )
 ```
 
-The text will be wrapped inside of the frame.
+The frame acts as a container, meaning the text will be wrapped to fit the provided frame.
 
 {% hint style="success" %}
 The frame can be any [GUI object](https://create.roblox.com/docs/reference/engine/classes/GuiObject).
@@ -25,7 +25,8 @@ The frame can be any [GUI object](https://create.roblox.com/docs/reference/engin
 Adding any folders or labels might screw up the rendering process as instances are cached and re-used.
 {% endhint %}
 
-\
+***
+
 You can get the raw text content of a frame at any time through the following function:
 
 ```lua
