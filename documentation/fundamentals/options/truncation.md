@@ -1,13 +1,26 @@
+---
+layout:
+  width: default
+  title:
+    visible: true
+  description:
+    visible: false
+  tableOfContents:
+    visible: true
+  outline:
+    visible: true
+  pagination:
+    visible: true
+  metadata:
+    visible: true
+  tags:
+    visible: true
+  actions:
+    visible: true
+---
+
 # Truncation
 
-`Truncate` is one of the many options.
+When enabled, text exceeding the boundaries of the frame with no space left to occupy will be truncated and have the end indicated with three dots.
 
-### When enabled:
-
-When text exceeds the boundaries and can no longer fit within the frame, the engine will intelligently find/make enough space for `...` at the end.
-
-For example: `Hello there!` might become `Hello the...` in certain scenarios.
-
-{% hint style="info" %}
-The dots (called an ellipsis) is a universal indication that there is more text out of sight.
-{% endhint %}
+For example, `Hello there!` may become `Hello the...` if the frame is too small to contain the full text. Adding an ellipsis should help clear up some confusion when text is cut off.

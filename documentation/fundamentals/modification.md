@@ -1,6 +1,27 @@
+---
+layout:
+  width: default
+  title:
+    visible: true
+  description:
+    visible: false
+  tableOfContents:
+    visible: true
+  outline:
+    visible: true
+  pagination:
+    visible: true
+  metadata:
+    visible: true
+  tags:
+    visible: true
+  actions:
+    visible: true
+---
+
 # Modification
 
-You can modify text after the initial creation, like this:
+You can easily modify text after initial creation like this:
 
 ```lua
 Text.Create(
@@ -9,7 +30,7 @@ Text.Create(
 )
 ```
 
-You can even modify the options, like this:
+You can even modify the options:
 
 ```lua
 Text.Create(

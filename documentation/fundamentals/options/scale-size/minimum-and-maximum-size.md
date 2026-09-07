@@ -1,10 +1,31 @@
+---
+layout:
+  width: default
+  title:
+    visible: true
+  description:
+    visible: false
+  tableOfContents:
+    visible: true
+  outline:
+    visible: true
+  pagination:
+    visible: true
+  metadata:
+    visible: true
+  tags:
+    visible: true
+  actions:
+    visible: true
+---
+
 # Minimum- and maximum-size
 
-`MinimumSize` and `MaximumSize` are two size-limit options.
+`MinimumSize` and `MaximumSize` are size-limit options for the scale-size mode.
 
-Both options are numbers, that are pixel amounts even when scale-size is enabled.\
-You don’t have to provide both, or even any.
+They are pixel amounts and completely optional.
 
 {% hint style="warning" %}
-These are only for when scale-size is enabled.
+Only for when scale-size is enabled.
 {% endhint %}
+

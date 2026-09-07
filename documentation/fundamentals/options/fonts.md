@@ -1,8 +1,27 @@
+---
+layout:
+  width: default
+  title:
+    visible: true
+  description:
+    visible: false
+  tableOfContents:
+    visible: true
+  outline:
+    visible: true
+  pagination:
+    visible: true
+  metadata:
+    visible: true
+  tags:
+    visible: true
+  actions:
+    visible: true
+---
+
 # Fonts
 
-`Font` is one of the many options.
-
-It accepts two types of data:
+One of these datatypes is expected:
 
 * A [`Font`](#user-content-fn-1)[^1] object.
 * A custom font data table.
@@ -25,9 +44,9 @@ Text.Create(
 
 ### Built-in fonts
 
-You can find all the built-in fonts [here](https://create.roblox.com/docs/reference/engine/datatypes/Font).
+You can find all the built-in Roblox fonts [here](https://create.roblox.com/docs/reference/engine/datatypes/Font).
 
-Simply copy the asset id from the font list and paste it into the `Font` object’s `Family`.
+Simply copy the asset id from the font list and paste it into the `Font` object’s `Family` field.
 
 ### Creator store fonts
 
@@ -42,7 +61,7 @@ print(game.Selection:Get()[1].FontFace.Family)
 ```
 
 It will output the asset id you need.\
-Simply copy-and-paste it into the `Font` object’s `Family`.
+Simply copy-and-paste it into the `Font` object’s `Family` field.
 
 ***
 
@@ -50,8 +69,8 @@ Simply copy-and-paste it into the `Font` object’s `Family`.
 
 Learn all about it in the dedicated section:
 
-{% content-ref url="/broken/pages/B187lJbTNyHjhqXicfuF" %}
-[Broken link](/broken/pages/B187lJbTNyHjhqXicfuF)
+{% content-ref url="https://app.gitbook.com/s/Bw4wVemrevDavfaAr2MQ/custom-fonts" %}
+[Custom fonts](https://app.gitbook.com/s/Bw4wVemrevDavfaAr2MQ/custom-fonts)
 {% endcontent-ref %}
 
 [^1]: A Roblox font object created with `Font.new()`.
