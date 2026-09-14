@@ -1,3 +1,24 @@
+---
+layout:
+  width: default
+  title:
+    visible: true
+  description:
+    visible: false
+  tableOfContents:
+    visible: true
+  outline:
+    visible: true
+  pagination:
+    visible: true
+  metadata:
+    visible: true
+  tags:
+    visible: true
+  actions:
+    visible: true
+---
+
 # Data module
 
 {% stepper %}
@@ -16,7 +37,7 @@ Give the module the [tag](https://create.roblox.com/docs/studio/properties#insta
 {% step %}
 ### Module content
 
-The module has to return a table, like this:
+The module should return a table, like this:
 
 ```lua
 return {
